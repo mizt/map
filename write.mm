@@ -26,13 +26,12 @@ int main(int argc, char *argv[]) {
         if(0) {
             for(int i=0; i<h; i++) {
                 for(int j=0; j<w; j++) {
-                    src[i*w+j] = ((int)((w+j)*shift))<<16|((int)((h+i)*shift));
+                    src[i*w+j] = ((int)(0x7FFF+j*shift))<<16|((int)(0x7FFF+i*shift));
                 }
             }
             stb_image::stbi_write_png("./maps/map.png",w,h,4,(void const*)src,w<<2);
         }
-        else { // sin
-                        
+        else { 
                         
             for(int i=0; i<h; i++) {
                 for(int j=0; j<w; j++) {
