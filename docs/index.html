@@ -112,7 +112,7 @@
 						gl,
 						"attribute vec3 v; varying vec2 t; void main(void) { gl_Position=vec4(v,1.); t=vec2((v.x+1.)*.5,1.-(v.y+1.)*.5); }",
 						"precision highp float; uniform sampler2D src; uniform sampler2D map; uniform float time; varying vec2 t; void main(void) { vec4 map=texture2D(map,t); int ox=int(map.a*255.); int xo=int(map.b*255.); float x=((float(ox*256+xo)-32767.)*0.25)/1024.0; ox=int(map.g*255.); xo=int(map.r*255.); float y=((float(ox*256+xo)-32767.)*0.25)/512.0; float wet=mod(time,2.0); if(wet>1.0) wet=2.0-wet; float dry=1.-wet; gl_FragColor=texture2D(src,t*dry+vec2(x,y)*wet); }",
-							plane.vertices
+						plane.vertices
 					);
 					var b = Date.now();
 					setInterval(function() {
