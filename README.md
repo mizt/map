@@ -1,5 +1,6 @@
 # map
 
+This code does not work properly WebGL in iOS.
 
 ### player.mm
 
