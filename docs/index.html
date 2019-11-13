@@ -111,6 +111,22 @@
 				}
 			}
 			
+			var Query = {
+				query:undefined,
+				q:{},
+				get:function(key) {		
+					if(this.query==undefined) {
+						this.query = window.location.search.substring(1);
+						var arr = this.query.split("&");
+						for(var i=0;i<arr.length;i++) {
+							var pair = arr[i].split("=");
+							this.q[pair[0]] = pair[1];
+						}
+					}	
+					return this.q[key];		
+				}
+			}
+			
 			var xhr = new XMLHttpRequest();
 			xhr.responseType="arraybuffer";
 			xhr.onload = function() {
@@ -187,7 +203,7 @@
 									float x = (float(g*100+r-2048))/1024.0; 
 									float y = (float(a*100+b-2048))/512.0; 
 									
-									float wet=mod(time,2.0); 
+									float wet=1.0; // mod(time,2.0); 
 									if(wet>1.0) wet=2.0-wet; 
 									float dry=1.0-wet; 
 									
@@ -219,7 +235,16 @@
 					img.src.src = "src.jpg";						
 				}
 			}
-			xhr.open("GET","./map.png",true);
+			
+			var fn = Query.get("map");
+			
+			if(fn) {
+				xhr.open("GET","./"+fn+".png",true);
+			}
+			else {
+				xhr.open("GET","./map.png",true);
+			}
+			
 			xhr.send(null);
 			
 		</script>
