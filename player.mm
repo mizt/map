@@ -16,7 +16,6 @@ namespace stb_image {
 #define WIDTH 1920
 #define HEIGHT 1080 
 
-
 class App {
     
     private:
@@ -29,11 +28,9 @@ class App {
         unsigned int *src = nullptr;
         unsigned int *map = nullptr;
 
-
     public:
         
         App() {
-            
             
             int w;
             int h;
@@ -94,9 +91,7 @@ class App {
                     });
                     
                 }
-                
-                
-                
+                  
             });
             if(this->timer) dispatch_resume(this->timer);                
         }
