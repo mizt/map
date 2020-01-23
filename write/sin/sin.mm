@@ -68,15 +68,26 @@ int main(int argc, char *argv[]) {
 
         for(int i=0; i<H; i++) {
             for(int j=0; j<W; j++) {
+                
+                /*
+                    float j2 = j*cos(theta)-i*sin(theta);
+                    float i2 = j*sin(theta)+i*cos(theta);
+                                                    
+                    P.x = (j2*cos(-theta)-i2*sin(-theta));
+                    P.y = (j2*sin(-theta)+i2*cos(-theta));
+                */
                     
-                double j2 = j*cos(theta)-i*sin(theta);
-                double i2 = j*sin(theta)+i*cos(theta);
+                float c = cos(theta);
+                float s = sin(theta);
+                
+                float j2 = j*c-i*s;
+                float i2 = j*s+i*c;
                 
                 i2 -= amp*sin(8*(j2/(double)max)*M_PI);
                 
-                P.x = (j2*cos(-theta)-i2*sin(-theta));
-                P.y = (j2*sin(-theta)+i2*cos(-theta));
-                
+                P.x = j2*+c-i2*-s;
+                P.y = j2*-s+i2*+c;
+                              
                 simd::float4 L = simd::float4{(float)j,(float)i,P.x,P.y};
                 
                 if(P.x<0||P.y<0) {
