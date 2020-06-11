@@ -34,11 +34,20 @@ namespace Plane {
     
     id<MTLTexture> _drawabletexture;    
     
-    id<MTLTexture> _texture;
-    id<MTLTexture> _map;
-
-    id<MTLBuffer> _resolution;
+    id<MTLTexture> _o0;
+    id<MTLTexture> _o1;
+    id<MTLTexture> _o2;
+    id<MTLTexture> _o3;
+            
+    id<MTLTexture> _s0;
+    id<MTLTexture> _s1;
+    id<MTLTexture> _s2;
+    id<MTLTexture> _s3;
     
+    id<MTLBuffer> _time;
+    id<MTLBuffer> _resolution;
+    id<MTLBuffer> _mouse;
+
     id<MTLBuffer> _vertexBuffer;
     id<MTLBuffer> _texcoordBuffer;
     
@@ -58,8 +67,14 @@ namespace Plane {
 +(Class)layerClass { return [CAMetalLayer class]; }
 -(BOOL)wantsUpdateLayer { return YES; }
 -(void)updateLayer { [super updateLayer]; }
--(id<MTLTexture>)texture { return _texture; }
--(id<MTLTexture>)map { return _map; }
+-(id<MTLTexture>)o0 { return _o0; }
+-(id<MTLTexture>)o1 { return _o1; }
+-(id<MTLTexture>)o2 { return _o2; }
+-(id<MTLTexture>)o3 { return _o3; }
+-(id<MTLTexture>)s0 { return _s0; }
+-(id<MTLTexture>)s1 { return _s1; }
+-(id<MTLTexture>)s2 { return _s2; }
+-(id<MTLTexture>)s3 { return _s3; }
 -(id<MTLTexture>)drawableTexture { return _drawabletexture; }
 -(void)cleanup { _metalDrawable = nil; }
 -(bool)setupShader {
@@ -136,7 +151,7 @@ namespace Plane {
         _commandQueue = [_device newCommandQueue];
         if(!_commandQueue) return nil;
         
-        NSString *path = [NSString stringWithFormat:@"%@/msl/main.metallib",[[NSBundle mainBundle] bundlePath]];
+        NSString *path = [NSString stringWithFormat:@"%@/shaders/main.metallib",[[NSBundle mainBundle] bundlePath]];
         if(!path) return nil;
         
         NSError *error = nil;
@@ -147,14 +162,38 @@ namespace Plane {
         MTLTextureDescriptor *texDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:frame.size.width height:frame.size.height mipmapped:NO];
         if(!texDesc) return nil;
         
-        _texture = [_device newTextureWithDescriptor:texDesc];
-        if(!_texture)  return nil;
+        _o0 = [_device newTextureWithDescriptor:texDesc];
+        if(!_o0)  return nil;
         
-        _map = [_device newTextureWithDescriptor:texDesc];
-        if(!_map)  return nil;
+        _o1 = [_device newTextureWithDescriptor:texDesc];
+        if(!_o1)  return nil;
+        
+         _o2 = [_device newTextureWithDescriptor:texDesc];
+        if(!_o2)  return nil;
+        
+        _o3 = [_device newTextureWithDescriptor:texDesc];
+        if(!_o3)  return nil;
+
+        _s0 = [_device newTextureWithDescriptor:texDesc];
+        if(!_s0)  return nil;
+        
+        _s1 = [_device newTextureWithDescriptor:texDesc];
+        if(!_s1)  return nil;
+        
+         _s2 = [_device newTextureWithDescriptor:texDesc];
+        if(!_s2)  return nil;
+        
+        _s3 = [_device newTextureWithDescriptor:texDesc];
+        if(!_s3)  return nil;
+        
+         _time = [_device newBufferWithLength:sizeof(float) options:MTLResourceOptionCPUCacheModeDefault];
+        if(!_time) return nil;
         
         _resolution = [_device newBufferWithLength:sizeof(float)*2 options:MTLResourceOptionCPUCacheModeDefault];
         if(!_resolution) return nil;
+        
+        _mouse = [_device newBufferWithLength:sizeof(float)*2 options:MTLResourceOptionCPUCacheModeDefault];
+        if(!_mouse) return nil;
         
         float *resolution = (float *)[_resolution contents];
         resolution[0] = _frame.size.width;
@@ -169,9 +208,19 @@ namespace Plane {
         _argumentEncoderBuffer = [_device newBufferWithLength:sizeof(float)*[_argumentEncoder encodedLength] options:MTLResourceOptionCPUCacheModeDefault];
         [_argumentEncoder setArgumentBuffer:_argumentEncoderBuffer offset:0];
 
-        [_argumentEncoder setBuffer:_resolution offset:0 atIndex:0];
-        [_argumentEncoder setTexture:_texture atIndex:1];
-        [_argumentEncoder setTexture:_map atIndex:2];
+        [_argumentEncoder setBuffer:_time offset:0 atIndex:0];
+        [_argumentEncoder setBuffer:_resolution offset:0 atIndex:1];
+        [_argumentEncoder setBuffer:_mouse offset:0 atIndex:2];
+
+        [_argumentEncoder setTexture:_o0 atIndex:3];
+        [_argumentEncoder setTexture:_o1 atIndex:4];
+        [_argumentEncoder setTexture:_o2 atIndex:5];
+        [_argumentEncoder setTexture:_o3 atIndex:6];
+        
+        [_argumentEncoder setTexture:_s0 atIndex:7];
+        [_argumentEncoder setTexture:_s1 atIndex:8];
+        [_argumentEncoder setTexture:_s2 atIndex:9];
+        [_argumentEncoder setTexture:_s3 atIndex:10];
         
     }
     return self;
@@ -197,7 +246,9 @@ namespace Plane {
         
         id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
         
-        
+        float *time = (float *)[_time contents];
+        time[0] = CFAbsoluteTimeGetCurrent()-_starttime;
+                    
         MTLRenderPassColorAttachmentDescriptor *colorAttachment = _renderPassDescriptor.colorAttachments[0];
         colorAttachment.texture = _metalDrawable.texture;
         colorAttachment.loadAction  = MTLLoadActionClear;
@@ -212,9 +263,19 @@ namespace Plane {
         [renderEncoder setVertexBuffer:_vertexBuffer offset:0 atIndex:0];
         [renderEncoder setVertexBuffer:_texcoordBuffer offset:0 atIndex:1];
 
+        [renderEncoder useResource:_time usage:MTLResourceUsageRead];
         [renderEncoder useResource:_resolution usage:MTLResourceUsageRead];
-        [renderEncoder useResource:_texture usage:MTLResourceUsageSample];
-        [renderEncoder useResource:_map usage:MTLResourceUsageSample];
+        [renderEncoder useResource:_mouse usage:MTLResourceUsageRead];
+
+        [renderEncoder useResource:_o0 usage:MTLResourceUsageSample];
+        [renderEncoder useResource:_o1 usage:MTLResourceUsageSample];
+        [renderEncoder useResource:_o2 usage:MTLResourceUsageSample];
+        [renderEncoder useResource:_o3 usage:MTLResourceUsageSample];
+        
+        [renderEncoder useResource:_s0 usage:MTLResourceUsageSample];
+        [renderEncoder useResource:_s1 usage:MTLResourceUsageSample];
+        [renderEncoder useResource:_s2 usage:MTLResourceUsageSample];
+        [renderEncoder useResource:_s3 usage:MTLResourceUsageSample];
 
         [renderEncoder setFragmentBuffer:_argumentEncoderBuffer offset:0 atIndex:0];
 

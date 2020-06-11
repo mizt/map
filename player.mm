@@ -52,7 +52,7 @@ class App {
                 }
             }
             
-            CGRect rect = CGRectMake(0,0,1920>>1,1080>>1);
+            CGRect rect = CGRectMake(0,0,1280,720);
             
             this->win = [[NSWindow alloc] initWithContentRect:rect styleMask:1 backing:NSBackingStoreBuffered defer:NO];
             this->view = [[MetalView alloc] initWithFrame:CGRectMake(0,0,WIDTH,HEIGHT)];
@@ -65,14 +65,13 @@ class App {
                 
                 if(src&&map) {
                     
-                    
-                    id<MTLTexture> texture = [this->view texture];
+                    id<MTLTexture> texture = [this->view s0];
                     int width  = (int)texture.width;
                     int height = (int)texture.height;
                             
                     [texture replaceRegion:MTLRegionMake2D(0,0,width,height) mipmapLevel:0 withBytes:this->src bytesPerRow:width<<2];
                         
-                    id<MTLTexture> map = [this->view map];
+                    id<MTLTexture> map = [this->view s1];
                     [map replaceRegion:MTLRegionMake2D(0,0,width,height) mipmapLevel:0 withBytes:this->map bytesPerRow:width<<2];
                                         
                                      

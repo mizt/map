@@ -18,7 +18,7 @@ https://mizt.github.io/map/
 	$ ./write
 
 
-### msl/main.metal
+### shader/main.metal
 
-	$ cd ./msl
+	$ cd ./shaders
 	$ xcrun -sdk macosx metal -c main.metal -o main.air; xcrun -sdk macosx metallib main.air -o main.metallib
