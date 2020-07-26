@@ -78,14 +78,10 @@
 				line-height:24px; 
 			}
 			
-			div.table {
-				width:100%;
-				display:table;
-			}
 			
-			div.table-cell {
-				display:table-cell;
+			div.cell {
 				width:50%;
+				float:left;
 			}
 						
 			pre {
@@ -199,7 +195,7 @@
 			
 			
 			
-			let data = ["div",{"style":"margin-top:6px;margin-bottom:0px;"}];
+			let data = ["div",{"style":"width:100%;margin-top:6px;margin-bottom:0px;"}];
 		
 			const list = [0,1,30];
 		
@@ -207,9 +203,11 @@
 				
 				let n = "0000"+list[k];				
 				
-				data.push(["div",{"class":"table"},["div",{"class":"table-cell"},["img",{"style":"width:100%;","src":"./data/"+(n.substr(n.length-5,5))+".png"}]],["div",{"class":"table-cell"},["img",{"style":"width:100%;","src":"./dst/"+(n.substr(n.length-5,5))+".png"}]]]);
+				data.push(["div",{"class":"cell"},["img",{"style":"width:100%;","src":"./data/"+(n.substr(n.length-5,5))+".png"}]],["div",{"class":"cell"},["img",{"style":"width:100%;","src":"./dst/"+(n.substr(n.length-5,5))+".png"}]]);
 				
 			}
+			
+			data.push(["div",{"style":"clear:both"}]);
 			
 			console.log(data);
 			
