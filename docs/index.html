@@ -3,249 +3,305 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-		<title>map</title>			
+		<title>map</title>
 		<style>
-		html {
-			height:100%;
-		}
-		body {
-			position:relative;
-			width:100%;
-			height:100%;
-			overflow:hidden;
-			background:#000;
-			margin:0; 
-			padding:0; 
-			vertical-align:bottom;
-		}		
-		canvas {
-			position:absolute;
-			width:100vw;
-			height:56vw;
-			max-width:1920px;
-			max-height:1080px;
-			top:50%;
-			transform:translate(0,-50%);
-		}
+			
+			* {
+				margin:0; 
+				padding:0;
+				font-family:"Hiragino Kaku Gothic Pro","ヒラギノ角ゴ Pro W3","メイリオ",Meiryo,"ＭＳ Ｐゴシック",sans-serif;
+				letter-spacing:1.5px;
+			}
+			
+			::selection { background:rgba(128,128,128,0.25); }
+			::-moz-selection { background:rgba(128,128,128,0.25); }
+			pre::selection { background:rgba(255,255,255,0.25); }
+			pre::-moz-selection { background:rgba(255,255,255,0.25); }					
+			img::selection, iframe::selection { background:rgba(0,0,0,0); }
+			img::-moz-selection, iframe::-moz-selection { background:rgba(0,0,0,0); }
+
+
+			body {
+				overflow-x:hidden;
+				color:#242424;
+				font-weight:normal;
+				font-size:14px;
+				margin-top:0px;
+				line-height:1em; 
+				padding:18px 0 48px 0;
+				background:#FFF;
+			}
+
+			.container {
+				position:relative;
+				width:88%;
+				max-width:1280px;
+				margin:0 auto 0 auto;
+			}
+			
+			.br:before {
+				content:"\A";
+				white-space:pre; 
+			}
+			
+			.condensed {
+				position:relative;
+				width:100%;
+				transform-origin:top left;
+				transform:scale(0.87,1);
+			}
+				 
+			h1 {
+				font-weight:600;
+				font-size:24px;
+				line-height:48px; 
+				margin-left:-1px;
+				margin-bottom:14px; 
+			}  
+			
+			h2 { 
+				font-weight:600;
+				font-size:16px;
+				line-height:48px; 
+				margin-top:0px;
+				margin-bottom:0px;  
+				word-wrap: break-word;
+				word-break: break-strict;
+			}
+			
+			h3 {
+				font-weight:600;
+			}
+			
+			p, h3 {
+				font-size:12px;
+				line-height:24px; 
+			}
+			
+			div.table {
+				width:100%;
+				display:table;
+			}
+			
+			div.table-cell {
+				display:table-cell;
+				width:50%;
+			}
+						
+			pre {
+				font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
+				font-size:13px;
+				line-height:20px;
+				border-radius:2px;
+				padding:12px 16px;
+				background-color:#1d1e39;
+				color:#FEFEFE;
+				tab-size:2;
+				white-space: pre;          
+				white-space: pre-wrap;     
+				white-space: -pre-wrap;    
+				white-space: -o-pre-wrap;  
+				white-space: -moz-pre-wrap;
+				white-space: -hp-pre-wrap;
+				word-wrap: break-word; 
+				word-break:break-all;
+				margin-top:6px; 
+				margin-bottom:6px;  
+			}
+			
+			pre.gray {
+				background-color:#222;
+				color:#AAA;
+				text-decoration:line-through;
+			}
+			
+			pre + pre {
+				margin-top:-6px; 
+				margin-bottom:12px;  
+			}
+			
+			video {
+				max-width:100%;
+				height:auto;
+				margin-top:6px;
+				margin-bottom:6px; 
+				vertical-align:top;
+			}
+			
+			img {
+				vertical-align:top;
+				max-width:100%;
+				height:auto;
+			}
+			
+			span.red {
+				background-color:rgba(255,32,32,0.2);
+				padding:1px;
+			}
+			
+			a {
+				color:#00F;
+				text-decoration:underline;
+			}
+			
+			#lang {
+				user-select:none;
+				font-size:12px;
+				z-index:1000;
+			}
+			
+			#lang span {
+				cursor:pointer;
+			}
+			
+			.en, .jp {
+				display:none;	
+			}
+			
+			
+			
+				
 		</style>
-		<script src="./libs.js"></script>
 	</head>
 	<body>
 		<script>
-		
-			var Canvas = function(uid,w,h) {
-				this.uid = uid;
-				this.el = document.createElement("canvas"); 
-				this.el.id = this.uid;
-				this.el.width  = this.width  = w;
-				this.el.height = this.height = h;				
-				this.ctx = this.el.getContext("webgl")||this.el.getContext("experimental-webgl");
-				if(this.ctx) document.body.appendChild(this.el);
-			}
 			
-			var Texture = function(gl,src) {
-				this.width  = src.width;
-				this.height = src.height;
-				this.texture = gl.createTexture();
-				gl.bindTexture(gl.TEXTURE_2D,this.texture);				
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);				
-				gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
-				gl.bindTexture(gl.TEXTURE_2D,null);
-			}
-			
-			var Map = function(gl,src,w,h) {
-				this.width  = w;
-				this.height = h;
-				this.texture = gl.createTexture();
-				gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);
-				gl.bindTexture(gl.TEXTURE_2D,this.texture);				
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-				gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-				gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,this.width,this.height,0,gl.RGBA,gl.UNSIGNED_BYTE,src);
-				gl.bindTexture(gl.TEXTURE_2D,null);
-			}
-					
-			var Plane = function(gl) {
-				this.vertex = [
-					-1.0,  1.0,  0.0,
-					 1.0,  1.0,  0.0,
-					-1.0, -1.0,  0.0,
-					 1.0, -1.0,  0.0
-				];
-				this.vertices = gl.createBuffer();
-				gl.bindBuffer(gl.ARRAY_BUFFER,this.vertices);
-				gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(this.vertex),gl.STATIC_DRAW);
-				gl.bindBuffer(gl.ARRAY_BUFFER,null);
-				this.index = [
-					0, 1, 2,
-					3, 2, 1
-				];
-				this.indices = gl.createBuffer();
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indices);
-				gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Int16Array(this.index),gl.STATIC_DRAW);
-				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,null);
-			}
-			
-			var Shader = function(gl,vert,frag,vertices) {
-				this.program = gl.createProgram();
-				var vs = gl.createShader(gl.VERTEX_SHADER);
-				gl.shaderSource(vs,vert);
-				gl.compileShader(vs);							
-				gl.attachShader(this.program,vs);
-				var fs = gl.createShader(gl.FRAGMENT_SHADER);
-				gl.shaderSource(fs,frag);
-				gl.compileShader(fs);
-				gl.attachShader(this.program,fs);
-				gl.linkProgram(this.program);
-				if(gl.getProgramParameter(this.program,gl.LINK_STATUS)){
-					gl.useProgram(this.program);
-						gl.bindBuffer(gl.ARRAY_BUFFER,vertices);							
-						gl.enableVertexAttribArray(gl.getAttribLocation(this.program,"v"));
-						gl.vertexAttribPointer(gl.getAttribLocation(this.program,"v"),3,gl.FLOAT,false,0,0);
-					gl.useProgram(null);
+			!function(e,n){"object"==typeof exports?module.exports=n():"function"==typeof define&&define.amd?define(n):e.crel=n()}(this,function(){function e(){var o,a=arguments,p=a[0],m=a[1],x=2,v=a.length,b=e[f];if(p=e[c](p)?p:d.createElement(p),1===v)return p;if((!l(m,t)||e[u](m)||s(m))&&(--x,m=null),v-x===1&&l(a[x],"string")&&void 0!==p[r])p[r]=a[x];else for(;v>x;++x)if(o=a[x],null!=o)if(s(o))for(var g=0;g<o.length;++g)y(p,o[g]);else y(p,o);for(var h in m)if(b[h]){var N=b[h];typeof N===n?N(p,m[h]):p[i](N,m[h])}else p[i](h,m[h]);return p}var n="function",t="object",o="nodeType",r="textContent",i="setAttribute",f="attrMap",u="isNode",c="isElement",d=typeof document===t?document:{},l=function(e,n){return typeof e===n},a=typeof Node===n?function(e){return e instanceof Node}:function(e){return e&&l(e,t)&&o in e&&l(e.ownerDocument,t)},p=function(n){return e[u](n)&&1===n[o]},s=function(e){return e instanceof Array},y=function(n,t){e[u](t)||(t=d.createTextNode(t)),n.appendChild(t)};return e[f]={},e[c]=p,e[u]=a,"undefined"!=typeof Proxy&&(e.proxy=new Proxy(e,{get:function(n,t){return!(t in e)&&(e[t]=e.bind(null,t)),e[t]}})),e});
+
+			var make = function(b) {
+				for(var k=0; k<b.length; k++) {
+					if(Array.isArray(b[k])) {						
+						b[k] = make(b[k]);
+					}
 				}
+				return crel.apply({},b);				
 			}
 			
 			var Query = {
+							
 				query:undefined,
-				q:{},
+				q:{"lang":"en"},
 				get:function(key) {		
 					if(this.query==undefined) {
 						this.query = window.location.search.substring(1);
-						var arr = this.query.split("&");
-						for(var i=0;i<arr.length;i++) {
-							var pair = arr[i].split("=");
+						const list = this.query.split("&");
+						for(let i=0;i<list.length;i++) {
+							const pair = list[i].split("=");
 							this.q[pair[0]] = pair[1];
 						}
 					}	
 					return this.q[key];		
 				}
 			}
+									
+			const type = Query.get("lang");
+			//console.log(type);
 			
-			var xhr = new XMLHttpRequest();
-			xhr.responseType="arraybuffer";
-			xhr.onload = function() {
-				if(this.status===200||this.status===0) {					
-					var png = new Uint8Array(this.response);
-					var data = new Uint8Array(
-						Module.HEAPU8.buffer,
-						Module._malloc(png.byteLength),
-						png.byteLength
-					);
-					data.set(png);
-					Module.cwrap("setup","void",["number","number"])(
-						data.byteOffset,
-						data.byteLength
-					);					
-					var getPixelX = Module.cwrap("getX","number",["number","number"]);
-					var getPixelY = Module.cwrap("getY","number",["number","number"]);
+			
+			
+			let data = ["div",{"style":"margin-top:6px;margin-bottom:0px;"}];
+		
+			const list = [0,1,30];
+		
+			for(let k=0; k<3; k++) {
+				
+				let n = "0000"+list[k];				
+				
+				data.push(["div",{"class":"table"},["div",{"class":"table-cell"},["img",{"style":"width:100%;","src":"./data/"+(n.substr(n.length-5,5))+".png"}]],["div",{"class":"table-cell"},["img",{"style":"width:100%;","src":"./dst/"+(n.substr(n.length-5,5))+".png"}]]]);
+				
+			}
+			
+			console.log(data);
+			
+			
+						
+			var block =[
+				{},
+				["div",{"class":"container"},
+					/*
+					["p",{"id":"lang","style":"position:absolute;top:4px;right:0;"},
+						["span",{"href":"./index.html?lang=jp"},"EN"],"/",
+						["span",{"href":"./index.html"},"JP"]
+					],
+					*/
+					["h1",{"class":"condensed"},"map"],
+					["p",["a",{"href":"https://github.com/mizt/map/"},"This is an experimental project"],".",["br"],["span",{"class":"red"},"No Warranty"],".",["br"]," This Application (including the Data) is provided to you “as is,” and you agree to use it at your own risk."],
 					
-					var img = {
-						"src":new Image()
+					["h2",{"class":"condensed"},"Demo"],
+					
+					["video",{"src":"map.mp4","width":1920,"height":1080,"autoplay":true,"muted":true,"playsinline":true,"webkit-playsinline":true,"loop":true,"controls":true}],
+					
+					["h2",{"class":"condensed"},"Encode"],
+					
+					["pre",["code","((int)(0x7FFF+(x<<2)))<<16|((int)(0x7FFF+(y<<2)));"]],
+			 
+					["h2",{"class":"condensed"},"Decode"],
+					
+					["pre",["code","float x = ((((int(map.a*255.0))<<8|(int(map.b*255.0)))-32767.0)*0.25)/(resolution.x-1.0);\nfloat y = ((((int(map.g*255.0))<<8|(int(map.r*255.0)))-32767.0)*0.25)/(resolution.y-1.0);"]],
+			 		
+					["h2",{"class":"condensed"},"Data"],
+
+					data
+					
+
+			
+				]
+			];
+			
+			if(Array.isArray(block)) {			
+				for(var k=0; k<block.length; k++) {
+					if(Array.isArray(block[k])) {						
+						crel(document.body,make(block[k]));
 					}
-					
-					var loaded = 0;
-					var load = function() {
-						if(++loaded==1) {
-								
-							var canvas = new Canvas("stage",1024,512);   
-							var data = new Uint8Array(1024*512*4);
-							
-							for(var i=0;i<512;i++) {
-								for(var j=0;j<1024;j++) {
-									
-									var addr = (i*1024+j)<<2;
-
-									var x = getPixelX(j,i)-0x7FFF+2048;
-									var y = getPixelY(j,i)-0x7FFF+2048;
-									
-									if(x<0) x = 0;
-									if(y<0) y = 0;
-									
-									if(x>4096*2) x = 4096*2;
-									if(y>4096*2) y = 4096*2;
-																		
-									data[addr+0] = (x%100)<<1; 
-									data[addr+1] = (x/100)<<1;
-									data[addr+2] = (y%100)<<1;
-									data[addr+3] = (y/100)<<1;
-								}	
-							}
-							
-							var gl = canvas.ctx;					  
-						  	var plane = new Plane(gl); 
-							var map = new Map(gl,data,1024,512);
-							var src = new Texture(gl,img.src);
-							var distortion = new Shader(
-								gl,
-								"attribute vec3 v; varying vec2 t; void main(void) { gl_Position=vec4(v,1.); t=vec2((v.x+1.)*.5,1.-(v.y+1.)*.5); }",
-								`precision mediump float;
-
-								uniform sampler2D src; 
-								uniform sampler2D map; 
-								uniform float time; 
-								varying vec2 t; 
-								void main(void) { 
-									
-									vec4 map=texture2D(map,t); 
-									
-									int r = int(floor(map.r*255.))/2; 
-									int g = int(floor(map.g*255.))/2; 
-									
-									int b = int(floor(map.b*255.))/2; 
-									int a = int(floor(map.a*255.))/2; 
-																		
-									float x = (float(g*100+r-2048))/1024.0; 
-									float y = (float(a*100+b-2048))/512.0; 
-									
-									float wet=1.0; // mod(time,2.0); 
-									if(wet>1.0) wet=2.0-wet; 
-									float dry=1.0-wet; 
-									
-									gl_FragColor=texture2D(src,t*dry+vec2(x,y)*wet);									
-								}`,
-								plane.vertices
-							);
-							var b = Date.now();
-							setInterval(function() {
-								var program = distortion.program;
-								gl.useProgram(program);
-									gl.uniform1f(gl.getUniformLocation(program,"time"),(Date.now()-b)*0.001);
-									gl.activeTexture(0x84C0);
-									gl.bindTexture(gl.TEXTURE_2D,src.texture);
-									gl.uniform1i(gl.getUniformLocation(program,"src"),0);	
-									gl.activeTexture(0x84C1);
-									gl.bindTexture(gl.TEXTURE_2D,map.texture);
-									gl.uniform1i(gl.getUniformLocation(program,"map"),1);								
-										gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,plane.indices);
-										gl.drawElements(gl.TRIANGLES,plane.index.length,gl.UNSIGNED_SHORT,0);
-									gl.bindTexture(gl.TEXTURE_2D,null);
-								gl.useProgram(null);	
-																		
-							},1000/30);	
-						}
-					};
-			
-					img.src.onload = load;
-					img.src.src = "src.jpg";						
 				}
 			}
 			
-			var fn = Query.get("map");
+			const lang = document.querySelectorAll("#lang")[0];
+			if(lang&&lang.childNodes&&lang.childNodes.length==3) {
+				
+				const EN = lang.childNodes[0];
+				const JP = lang.childNodes[2];
+				
+				const text = function(type,init) {
+										
+					const en = document.querySelectorAll(".en");
+					const jp = document.querySelectorAll(".jp");
+					
+					if(type=="en") {
+						
+						EN.style.color = "#000";
+						EN.style.textDecoration = "none";
+						
+						JP.style.color = "#00F";
+						JP.style.textDecoration = "underline";
+						
+						for(let k=0; k<en.length; k++) en[k].style.display = "block";
+						for(let k=0; k<jp.length; k++) jp[k].style.display = "none";
+						
+						if(init) history.replaceState(null,document.title,"?lang=en");
+										
+					}
+					else {
+						
+						EN.style.color = "#00F";
+						EN.style.textDecoration = "underline";
+
+						JP.style.color = "#000";
+						JP.style.textDecoration = "none";
+												
+						for(let k=0; k<en.length; k++) en[k].style.display = "none";
+						for(let k=0; k<jp.length; k++) jp[k].style.display = "block";
+						
+						if(init) history.replaceState(null,document.title,"?lang=jp");
+						
+					}
+				}
+							
+				EN.addEventListener("click",function(){text("en",true);});	
+				JP.addEventListener("click",function(){text("jp",true);});
 			
-			if(fn) {
-				xhr.open("GET","./"+fn+".png",true);
-			}
-			else {
-				xhr.open("GET","./map.png",true);
-			}
-			
-			xhr.send(null);
+				text(type,false);
+			};			
 			
 		</script>
 	</body>

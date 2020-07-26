@@ -1,8 +1,12 @@
 # map
 
-### WebGL
+### Documentation
 
 https://mizt.github.io/map/
+
+### WebGL
+
+https://mizt.github.io/map/webgl.html
 
 ~This code does not work properly WebGL in iOS.~
 
