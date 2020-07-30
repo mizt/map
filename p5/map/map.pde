@@ -5,7 +5,6 @@ int map(int x,int y) {
   int ab = 0x7FFF+(x<<2);
   int gr = 0x7FFF+(y<<2);  
   return (ab&0xFF00)<<16|(gr&0xFF)<<16|(gr&0xFF00)|ab&0xFF;
-
 }
 
 void setup(){
