@@ -39,10 +39,6 @@
 				margin:0 auto 0 auto;
 			}
 			
-			.br:before {
-				content:"\A";
-				white-space:pre; 
-			}
 			
 			.condensed {
 				position:relative;
@@ -73,9 +69,18 @@
 				font-weight:600;
 			}
 			
-			p, h3 {
+			ul {
+				margin-left:1.25em;
+				list-style-type:circle;
+			}
+			
+			p, h3, li {
 				font-size:12px;
 				line-height:24px; 
+			}
+			
+			.br {
+				margin-bottom:12px;
 			}
 			
 			
@@ -128,6 +133,16 @@
 				vertical-align:top;
 				max-width:100%;
 				height:auto;
+				margin-top:6px;
+			}
+			
+			div.cell img {
+				margin-top:0;
+			}
+			
+			a {
+				color:#00F;
+				text-decoration:underline;
 			}
 			
 			span.red {
@@ -135,9 +150,8 @@
 				padding:1px;
 			}
 			
-			a {
-				color:#00F;
-				text-decoration:underline;
+			span.bold {
+				font-weight:bold;
 			}
 			
 			#lang {
@@ -195,7 +209,7 @@
 			
 			
 			
-			let data = ["div",{"style":"width:100%;margin-top:6px;margin-bottom:0px;"}];
+			let data = ["div",{"style":"width:100%;margin-top:6px;margin-bottom:6px;"}];
 		
 			const list = [0,1,30];
 		
@@ -209,10 +223,8 @@
 			
 			data.push(["div",{"style":"clear:both"}]);
 			
-			console.log(data);
-			
-			
-						
+			//console.log(data);
+									
 			var block =[
 				{},
 				["div",{"class":"container"},
@@ -238,16 +250,21 @@
 						["a",{"href":"https://github.com/mizt/map/blob/master/p5/map/map.pde"},"Processing"]
 					],
 					
-			 
 					["h2",{"class":"condensed"},"Decode"],
 					
 					["pre",["code","float x = ((((int(map.a*255.0))<<8|(int(map.b*255.0)))-32767.0)*0.25)/(resolution.x-1.0);\nfloat y = ((((int(map.g*255.0))<<8|(int(map.r*255.0)))-32767.0)*0.25)/(resolution.y-1.0);"]],
 			 		
 					["h2",{"class":"condensed"},"Data"],
 
-					data
+					data,
 					
-
+					["h2",{"class":"condensed"},"Debugging with AE (WIP)"],
+					["p",
+						["a",{"href":"https://github.com/mizt/map/tree/master/ae"},"AE plug-in source code"],"."
+					],
+					
+					["img",{"src":"./ae.png"}],
+					
 			
 				]
 			];
