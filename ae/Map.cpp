@@ -2,7 +2,7 @@
 
 static PF_Err GlobalSetup(PF_InData *in_data, PF_OutData *out_data, PF_ParamDef *params[], PF_LayerDef *output) {
     
-    PF_Err     err = PF_Err_NONE;
+    PF_Err err = PF_Err_NONE;
     
     out_data->my_version = PF_VERSION(2,0,0,PF_Stage_DEVELOP,0);
     out_data->out_flags = PF_OutFlag_WIDE_TIME_INPUT;
@@ -16,8 +16,14 @@ static PF_Err ParamsSetup(PF_InData *in_data, PF_OutData *out_data, PF_ParamDef 
     PF_ParamDef def;
     
     AEFX_CLR_STRUCT(def);
-
     PF_ADD_LAYER("Target",PF_LayerDefault_MYSELF,MAP_LAYER_DISK_ID);
+    
+    AEFX_CLR_STRUCT(def);
+    PF_ADD_SLIDER("Width",128,3840,128,3840,1920,MAP_WIDTH);
+    
+    AEFX_CLR_STRUCT(def);
+    PF_ADD_SLIDER("Height",128,2160,128,2160,1080,MAP_HEIGHT);
+    
 
     out_data->num_params = MAP_NUM_PARAMS;
     
@@ -44,9 +50,9 @@ static PF_Err Render(PF_InData *in_data, PF_OutData *out_data, PF_ParamDef *para
         
         if(param.u.ld.data) {
             
-            double w = 1920.0-1.0;
-            double h = 1080.0-1.0;
-            
+            double w = params[MAP_WIDTH]->u.sd.value-1.0;
+            double h = params[MAP_HEIGHT]->u.sd.value-1.0;
+                    
             int width  = output->width;
             int height = output->height;
             
