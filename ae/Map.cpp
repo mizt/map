@@ -18,13 +18,6 @@ static PF_Err ParamsSetup(PF_InData *in_data, PF_OutData *out_data, PF_ParamDef 
     AEFX_CLR_STRUCT(def);
     PF_ADD_LAYER("Target",PF_LayerDefault_MYSELF,MAP_LAYER_DISK_ID);
     
-    AEFX_CLR_STRUCT(def);
-    PF_ADD_SLIDER("Width",128,3840,128,3840,1920,MAP_WIDTH);
-    
-    AEFX_CLR_STRUCT(def);
-    PF_ADD_SLIDER("Height",128,2160,128,2160,1080,MAP_HEIGHT);
-    
-
     out_data->num_params = MAP_NUM_PARAMS;
     
     return err;
@@ -49,50 +42,60 @@ static PF_Err Render(PF_InData *in_data, PF_OutData *out_data, PF_ParamDef *para
     if(!err) {
         
         if(param.u.ld.data) {
-            
-            double w = params[MAP_WIDTH]->u.sd.value-1.0;
-            double h = params[MAP_HEIGHT]->u.sd.value-1.0;
                     
-            int width  = output->width;
-            int height = output->height;
+            unsigned int *dst = (unsigned int *)output->data;
+
+            int dstWidth = output->width;
+            int dstHeight = output->height;
+            int dstRow = output->rowbytes>>2;
             
             PF_EffectWorld *input = &params[MAP_INPUT]->u.ld;
             PF_EffectWorld *data = &param.u.ld;
             
-            int srcRow = input->rowbytes>>2;
-
             unsigned int *src = (unsigned int *)input->data;
-            unsigned int *dst = (unsigned int *)output->data;
+            
+            int srcWidth = input->width;
+            int srcHeight = input->height;
+            int srcRow = input->rowbytes>>2;
             
             unsigned int *map = (unsigned int *)data->data;
             
-            int dstRow = output->rowbytes>>2;
+            int mapWidth = data->width;
+            int mapHeight = data->height;
+            int mapRow = data->rowbytes>>2;
             
-            for(int i=0; i<height; i++) {
-                for(int j=0; j<width; j++) {
+            for(int i=0; i<dstHeight; i++) {
+                for(int j=0; j<dstWidth; j++) {
                     
-                    unsigned int xy = map[i*srcRow+j];
-             
-                    unsigned char a = (xy)&0xFF;
-                    unsigned char r = (xy>>8)&0xFF;
-                    unsigned char g = (xy>>16)&0xFF;
-                    unsigned char b = (xy>>24)&0xFF;
-                    
-                    int x = ((((a<<8|b)-0x7FFF)>>2)/(w))*(double)(width-1.0);
-                    int y = ((((g<<8|r)-0x7FFF)>>2)/(h))*(double)(height-1.0);
-                    
-                    if(x>=0&&x<width&&y>=0&&y<height) {
-                        dst[i*dstRow+j] = src[y*srcRow+x];
+                    if(j<mapWidth&&i<mapHeight) {
+                        
+                        unsigned int xy = map[i*mapRow+j];
+                        
+                        unsigned char a = (xy)&0xFF;
+                        unsigned char r = (xy>>8)&0xFF;
+                        unsigned char g = (xy>>16)&0xFF;
+                        unsigned char b = (xy>>24)&0xFF;
+                                
+                        int x = ((((a<<8|b)-0x7FFF)>>2))*scaleX;
+                        int y = ((((g<<8|r)-0x7FFF)>>2))*scaleY;
+                                
+                        if(x>=0&&x<srcWidth&&y>=0&&y<srcHeight) {
+                            dst[i*dstRow+j] = src[y*srcRow+x];
+                        }
+                        else {
+                            dst[i*dstRow+j] = 0xFF0000FF;
+                        }                        
                     }
                     else {
                         dst[i*dstRow+j] = 0xFF0000FF;
                     }
+                    
                 }
             }
         }
         else {
                         
-            int width  = output->width;
+            int width = output->width;
             int height = output->height;
             
             unsigned int *dst = (unsigned int *)output->data;
