@@ -212,12 +212,7 @@
 			var block =[
 				{},
 				["div",{"class":"container"},
-					/*
-					["p",{"id":"lang","style":"position:absolute;top:4px;right:0;"},
-						["span",{"href":"./index.html?lang=jp"},"EN"],"/",
-						["span",{"href":"./index.html"},"JP"]
-					],
-					*/
+					
 					["h1",{"class":"condensed"},"map"],
 					["p",["a",{"href":"https://github.com/mizt/map/"},"This is an experimental project"],".",["br"],["span",{"class":"red"},"No Warranty"],".",["br"]," This Application (including the Data) is provided to you “as is,” and you agree to use it at your own risk."],
 					
@@ -228,33 +223,21 @@
 					["h2",{"class":"condensed"},"Encode"],
 					
 					["pre",["code","((int)(0x7FFF+(x<<2)))<<16|((int)(0x7FFF+(y<<2)));"]],
-					
-					["p",
-						["a",{"href":"https://github.com/mizt/map/blob/master/write/test/test.cpp"},"C++"]
-					],
-					
 					["h2",{"class":"condensed"},"Decode"],
 					
 					["pre",["code","float x = ((((int(map.a*255.0))<<8|(int(map.b*255.0)))-32767.0)*0.25)/(resolution.x-1.0);\nfloat y = ((((int(map.g*255.0))<<8|(int(map.r*255.0)))-32767.0)*0.25)/(resolution.y-1.0);"]],
 			 		
 					["h2",{"class":"condensed"},"Data"],
 
-					data,
-					
-					["h2",{"class":"condensed"},"Debugging with AE (WIP)"],
-					["p",
-						["a",{"href":"https://github.com/mizt/map/tree/master/ae"},"AE plug-in source code"],"."
-					],
-					
-					["img",{"src":"./ae.png"}],
+					data
 					
 			
 				]
 			];
 			
-			if(Array.isArray(block)) {			
+			if(Array.isArray(block)) {
 				for(var k=0; k<block.length; k++) {
-					if(Array.isArray(block[k])) {						
+					if(Array.isArray(block[k])) {
 						crel(document.body,make(block[k]));
 					}
 				}
@@ -358,7 +341,7 @@
 				JP.addEventListener("click",function(){text("jp",true);});
 			
 				text(type,false);
-			};			
+			};
 			
 		</script>
 	</body>
