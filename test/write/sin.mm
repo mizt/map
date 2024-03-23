@@ -1,16 +1,12 @@
 #import <Cocoa/Cocoa.h>
 #import <simd/simd.h>
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wcomma"
-#pragma clang diagnostic ignored "-Wunused-function"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
 namespace stb_image {
     #import "../../libs/stb_image_write.h"
 }
-#pragma clang diagnostic pop
 
 bool intersection(simd::float4 *P12,simd::float4 *P34,simd::float2 *P) {
     
