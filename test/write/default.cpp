@@ -9,8 +9,8 @@ namespace stb_image {
 
 int main(int argc, char *argv[]) {
             
-    int W = 1920;
-    int H = 1080;
+    int W = 3840;
+    int H = 2160;
         
     double shift = 4.0;
         

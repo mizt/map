@@ -36,8 +36,8 @@ int main(int argc, char *argv[]) {
                 
         float amp = 200.0;
                 
-        int W = 1920;
-        int H = 1080;
+        int W = 3840;
+        int H = 2160;
         
         double shift = 4.0;
         
