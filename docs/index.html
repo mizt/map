@@ -320,351 +320,323 @@
             crel(document.body,canvas);
             
             const gl = canvas.getContext("webgl2",{antialias:false});
-            gl.getExtension("EXT_color_buffer_float");
-            gl.getExtension("OES_texture_float");
-            gl.getExtension("OES_texture_float_linear");
-            
-            const bufferInfo = twgl.createBufferInfoFromArrays(gl,{
-                position:{numComponents:3,data:[-1,-1,0,1,-1,0,-1,1,0,1,1,0]},
-                texcoord:{numComponents:2,data:[0,0,1,0,0,1,1,1]},
-                indices:{numComponents:3,data:[0,1,2,1,2,3]},
-            });
-            
-            const setTexParameteri = ()=>{
-                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
-                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-            }
-            
-            const fill = (program,info,uniforms)=>{
-                gl.viewport(0,0,Info.W,Info.H);
-                gl.clearColor(0,0,0,0);
-                gl.clear(gl.COLOR_BUFFER_BIT);
-                gl.useProgram(program);
-                twgl.setBuffersAndAttributes(gl,info,bufferInfo);
-                twgl.setUniforms(info,uniforms);
-                gl.drawElements(gl.TRIANGLES,bufferInfo.numElements,gl.UNSIGNED_SHORT,0);
-            }
-            
-            const Framebuffer = {
-                create:(w,h)=>{
-                    const frameBuffer = gl.createFramebuffer();
-                    gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer);
-                    const texture = gl.createTexture();
-                    gl.bindTexture(gl.TEXTURE_2D,texture);
-                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32F,w,h,0,gl.RG,gl.FLOAT,null);
-                    setTexParameteri();
-                    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);
-                    gl.bindTexture(gl.TEXTURE_2D,null);
-                    gl.bindRenderbuffer(gl.RENDERBUFFER,null);
-                    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-                    return { frameBuffer:frameBuffer, texture:texture };
-                },
-                cleanup:(fbo)=>{
-                    gl.deleteFramebuffer(fbo.frameBuffer);
-                    gl.deleteTexture(fbo.texture);
+            if(gl.getExtension("EXT_color_buffer_float")&&gl.getExtension("OES_texture_float_linear")) {
+                
+                const bufferInfo = twgl.createBufferInfoFromArrays(gl,{
+                    position:{numComponents:3,data:[-1,-1,0,1,-1,0,-1,1,0,1,1,0]},
+                    texcoord:{numComponents:2,data:[0,0,1,0,0,1,1,1]},
+                    indices:{numComponents:3,data:[0,1,2,1,2,3]},
+                });
+                
+                const setTexParameteri = ()=>{
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+                    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
                 }
-            };
-            
-            let FBO = [
-                Framebuffer.create(Info.W,Info.H),
-                Framebuffer.create(Info.W,Info.H)
-            ];
-            
-            const VS = `#version 300 es
-precision highp float;
-in vec2 texcoord;
-in vec4 position;
-out vec2 v_texCoord;
-void main() {
-    v_texCoord = texcoord; 
-    gl_Position = position; 
-}`;
-            
-            const update = {
-                fs:`#version 300 es
-precision highp float;
-in vec2 v_texCoord; 
-uniform sampler2D u_map; 
-uniform vec2 u_cursor;
-uniform vec2 u_prevCursor;
-uniform vec2 u_resolution;
-out vec2 FragColor;
-void main() { 
-    vec2 aspect = vec2(1.0,u_resolution.y/u_resolution.x);
-    float radius=0.4;
-    float mask = 0.5*smoothstep(radius,0.0,distance((2.0*v_texCoord-1.0)*aspect,(2.0*(u_cursor/(u_resolution-1.0))-1.0)*aspect));
-    vec2 dir = ((u_cursor-u_prevCursor)/(u_resolution-1.0))*mask;
-    FragColor = texture(u_map,v_texCoord-dir).rg; 
-}`};
-            update.program = twgl.createProgramFromSources(gl,[VS,update.fs]);
-            update.info = twgl.createProgramInfoFromProgram(gl,update.program);
-            update.uniforms = {
-                u_resolution:[Info.W,Info.H]
-            };
-            
-            const draw = {
-                fs:`#version 300 es
-precision highp float;
-in vec2 v_texCoord; 
-uniform sampler2D u_jpg; 
-uniform sampler2D u_map; 
-uniform int u_type;
-uniform float u_wet;
-uniform vec2 u_resolution;
-out vec4 FragColor;
-void main() {
-
-    float offset = 21845.0;
-    float scale = 4.0;
-
-    vec2 uv = vec2(v_texCoord.x,1.0-v_texCoord.y);
-    vec2 map = offset+uv*u_resolution*scale;
-        
-    ivec2 xy = ivec2(map*(1.0-u_wet)+(65535.0*texture(u_map,uv).rg)*u_wet);
-
-    if(u_type==0) {
-        xy-=int(offset);
-        FragColor = texture(u_jpg,(vec2(xy)/scale)/(u_resolution-1.0));
-    }
-    else {
-        FragColor = vec4(
-            float(xy.x&0xFF)/255.0,
-            float(xy.y>>8)/255.0,
-            float(xy.y&0xFF)/255.0,
-            float(xy.x>>8)/255.0
-        );
-    }
-}`};
-            draw.program = twgl.createProgramFromSources(gl,[VS,draw.fs]);
-            draw.info = twgl.createProgramInfoFromProgram(gl,draw.program);
-            draw.uniforms = {
-                u_wet:1.0,
-                u_resolution:[Info.W,Info.H]
-            };
-            
-            let jpg;
-            let map;
-            
-            const Texture = {
-                createU32:(img)=>{
-                    const texture = gl.createTexture();
-                    gl.bindTexture(gl.TEXTURE_2D,texture);
-                    setTexParameteri();
-                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,Info.W,Info.H,0,gl.RGBA,gl.UNSIGNED_BYTE,img);
-                    gl.bindTexture(gl.TEXTURE_2D,null);
-                    return texture;
-                },
-                createF32:()=>{
-                    const texture = gl.createTexture();
-                    gl.bindTexture(gl.TEXTURE_2D,texture);
-                    setTexParameteri();
-                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32F,Info.W,Info.H,0,gl.RG,gl.FLOAT,XY.buffer);
-                    gl.bindTexture(gl.TEXTURE_2D,null);
-                    return texture;
-                },
-                cleanup:(texture)=>{
-                    gl.deleteTexture(texture);
+                
+                const fill = (program,info,uniforms)=>{
+                    gl.viewport(0,0,Info.W,Info.H);
+                    gl.clearColor(0,0,0,0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    gl.useProgram(program);
+                    twgl.setBuffersAndAttributes(gl,info,bufferInfo);
+                    twgl.setUniforms(info,uniforms);
+                    gl.drawElements(gl.TRIANGLES,bufferInfo.numElements,gl.UNSIGNED_SHORT,0);
                 }
-            }
+                
+                const Framebuffer = {
+                    create:(w,h)=>{
+                        const frameBuffer = gl.createFramebuffer();
+                        gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer);
+                        const texture = gl.createTexture();
+                        gl.bindTexture(gl.TEXTURE_2D,texture);
+                        gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32F,w,h,0,gl.RG,gl.FLOAT,null);
+                        setTexParameteri();
+                        gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);
+                        gl.bindTexture(gl.TEXTURE_2D,null);
+                        gl.bindRenderbuffer(gl.RENDERBUFFER,null);
+                        gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+                        return { frameBuffer:frameBuffer, texture:texture };
+                    },
+                    cleanup:(fbo)=>{
+                        gl.deleteFramebuffer(fbo.frameBuffer);
+                        gl.deleteTexture(fbo.texture);
+                    }
+                };
+                
+                let FBO = [
+                    Framebuffer.create(Info.W,Info.H),
+                    Framebuffer.create(Info.W,Info.H)
+                ];
+                
+                const VS = `#version 300 es
+    precision highp float;
+    in vec2 texcoord;
+    in vec4 position;
+    out vec2 v_texCoord;
+    void main() {
+        v_texCoord = texcoord; 
+        gl_Position = position; 
+    }`;
+                
+                const update = {
+                    fs:`#version 300 es
+    precision highp float;
+    in vec2 v_texCoord; 
+    uniform sampler2D u_map; 
+    uniform vec2 u_cursor;
+    uniform vec2 u_prevCursor;
+    uniform vec2 u_resolution;
+    out vec2 FragColor;
+    void main() { 
+        vec2 aspect = vec2(1.0,u_resolution.y/u_resolution.x);
+        float radius=0.4;
+        float mask = 0.5*smoothstep(radius,0.0,distance((2.0*v_texCoord-1.0)*aspect,(2.0*(u_cursor/(u_resolution-1.0))-1.0)*aspect));
+        vec2 dir = ((u_cursor-u_prevCursor)/(u_resolution-1.0))*mask;
+        FragColor = texture(u_map,v_texCoord-dir).rg; 
+    }`};
+                update.program = twgl.createProgramFromSources(gl,[VS,update.fs]);
+                update.info = twgl.createProgramInfoFromProgram(gl,update.program);
+                update.uniforms = {
+                    u_resolution:[Info.W,Info.H]
+                };
+                
+                const draw = {
+                    fs:`#version 300 es
+    precision highp float;
+    in vec2 v_texCoord; 
+    uniform sampler2D u_jpg; 
+    uniform sampler2D u_map; 
+    uniform int u_type;
+    uniform float u_wet;
+    uniform vec2 u_resolution;
+    out vec4 FragColor;
+    void main() {
+    
+        float offset = 21845.0;
+        float scale = 4.0;
+    
+        vec2 uv = vec2(v_texCoord.x,1.0-v_texCoord.y);
+        vec2 map = offset+uv*u_resolution*scale;
             
-            jpg = Texture.createU32(DEFAULT_IMAGE);
-            draw.uniforms.u_jpg = jpg;
-            
-            map = Texture.createF32();
-            
-            const onUpdate = ()=>{
-                update.uniforms.u_map = (frame!==-1)?FBO[(frame+1)&1].texture:map;
-                gl.bindFramebuffer(gl.FRAMEBUFFER,FBO[frame&1].frameBuffer);
-                fill(update.program,update.info,update.uniforms);
-                gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-                frame++;
-            }
-            
-            const onDraw = ()=>{
-                draw.uniforms.u_map = FBO[(frame+1)&1].texture;
-                fill(draw.program,draw.info,draw.uniforms);
-            }
-            
-            const mouse = {
-                x:0,
-                y:0,
-                click:false,
-                target:null
-            };
-            
-            const onMouseDown = (px,py)=>{
-                mouse.click = true;
-                const rect = canvas.getBoundingClientRect();
-                const x = (px*(Info.W/rect.width))>>0;
-                const y = (py*(Info.H/rect.height))>>0;
-                mouse.x = x;
-                mouse.y = y;
-            };
-            
-            let then = Date.now();
-            const onMouseMove = (px,py)=>{
-                const rect = canvas.getBoundingClientRect();
-                const x = (px*(Info.W/rect.width))>>0;
-                const y = (py*(Info.H/rect.height))>>0;
-                update.uniforms.u_prevCursor = [mouse.x,mouse.y];
-                update.uniforms.u_cursor = [x,y];
-                mouse.x = x;
-                mouse.y = y;
-                onUpdate();
-                onDraw();
-            };
-            
-            const onMouseUp = ()=>{
-                onDraw();
-                mouse.click = false;
-                document.body.style.cursor = "default";
-            };
-            
-            const Type = {
-                RGB:0,
-                MAP:1
-            };
-            
-            const input = [
-                crel("input",{"id":"RGB","type":"radio","name":"mode","checked":true}),
-                crel("input",{"id":"MAP","type":"radio","name":"mode","checked":false})
-            ];
-            
-            input[Type.RGB].onchange=(e)=>{
-                draw.uniforms.u_type = Type.RGB;
-                onDraw();
-            };
-            
-            input[Type.MAP].onchange=(e)=>{
-                draw.uniforms.u_type = Type.MAP;
-                onDraw();
-            };
-            
-            const footer = crel("div",{"id":"footer"});
-            crel(document.body,
-                crel(footer,
-                    crel("form",
-                        input[Type.RGB],
-                        crel("label",{"for":"RGB"},"RGB"),
-                        input[Type.MAP],
-                        crel("label",{"for":"MAP"},"MAP")
-                    )
-                )
+        ivec2 xy = ivec2(map*(1.0-u_wet)+(65535.0*texture(u_map,uv).rg)*u_wet);
+    
+        if(u_type==0) {
+            xy-=int(offset);
+            FragColor = texture(u_jpg,(vec2(xy)/scale)/(u_resolution-1.0));
+        }
+        else {
+            FragColor = vec4(
+                float(xy.x&0xFF)/255.0,
+                float(xy.y>>8)/255.0,
+                float(xy.y&0xFF)/255.0,
+                float(xy.x>>8)/255.0
             );
-            
-            if("ontouchstart" in document.documentElement) {
+        }
+    }`};
+                draw.program = twgl.createProgramFromSources(gl,[VS,draw.fs]);
+                draw.info = twgl.createProgramInfoFromProgram(gl,draw.program);
+                draw.uniforms = {
+                    u_wet:1.0,
+                    u_resolution:[Info.W,Info.H]
+                };
                 
-                document.addEventListener("touchstart",(e)=>{
-                    const touchObject = e.targetTouches[0];
-                    const x = touchObject.pageX;
-                    const y = touchObject.pageY;
-                    const rect = canvas.getBoundingClientRect();
-                    if(hitTest(x,y,rect)) {
-                        e.preventDefault();
-                        onMouseDown(x-rect.left,y-rect.top);
+                let jpg;
+                let map;
+                
+                const Texture = {
+                    createU32:(img)=>{
+                        const texture = gl.createTexture();
+                        gl.bindTexture(gl.TEXTURE_2D,texture);
+                        setTexParameteri();
+                        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,Info.W,Info.H,0,gl.RGBA,gl.UNSIGNED_BYTE,img);
+                        gl.bindTexture(gl.TEXTURE_2D,null);
+                        return texture;
+                    },
+                    createF32:()=>{
+                        const texture = gl.createTexture();
+                        gl.bindTexture(gl.TEXTURE_2D,texture);
+                        setTexParameteri();
+                        gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32F,Info.W,Info.H,0,gl.RG,gl.FLOAT,XY.buffer);
+                        gl.bindTexture(gl.TEXTURE_2D,null);
+                        return texture;
+                    },
+                    cleanup:(texture)=>{
+                        gl.deleteTexture(texture);
                     }
-                },{passive:false});
+                }
                 
-                document.addEventListener("touchmove",(e)=>{
-                    e.preventDefault();
-                    if(mouse.click) {
-                        const touchObject = e.targetTouches[0];
-                        const rect = canvas.getBoundingClientRect();
-                        onMouseMove(touchObject.pageX-rect.left,touchObject.pageY-rect.top);
-                    }
-                },{passive:false});
+                jpg = Texture.createU32(DEFAULT_IMAGE);
+                draw.uniforms.u_jpg = jpg;
                 
-                document.addEventListener("touchend",(e)=>{
-                    if(mouse.click) onMouseUp();
-                },{passive:false});
+                map = Texture.createF32();
                 
-                document.addEventListener("touchcansel",(e)=>{
-                    if(mouse.click) onMouseUp();
-                },{passive:false});
+                const onUpdate = ()=>{
+                    update.uniforms.u_map = (frame!==-1)?FBO[(frame+1)&1].texture:map;
+                    gl.bindFramebuffer(gl.FRAMEBUFFER,FBO[frame&1].frameBuffer);
+                    fill(update.program,update.info,update.uniforms);
+                    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+                    frame++;
+                }
                 
-            }
-            else {
+                const onDraw = ()=>{
+                    draw.uniforms.u_map = FBO[(frame+1)&1].texture;
+                    fill(draw.program,draw.info,draw.uniforms);
+                }
                 
-                contextmenu.addEventListener("mouseover",(e)=>{
-                    contextmenu.style.background = "#07F";
-                    contextmenu.style.color = "#EEE";
-                });
+                const mouse = {
+                    x:0,
+                    y:0,
+                    click:false,
+                    target:null
+                };
                 
-                contextmenu.addEventListener("mouseout",(e)=>{
-                    contextmenu.style.background = "#EEE";
-                    contextmenu.style.color = "#222";
-                });
-                
-                canvas.oncontextmenu = ()=>{ return false; }
-                canvas.addEventListener("contextmenu",(e)=>{
-                    
+                const onMouseDown = (px,py)=>{
                     mouse.click = true;
+                    const rect = canvas.getBoundingClientRect();
+                    const x = (px*(Info.W/rect.width))>>0;
+                    const y = (py*(Info.H/rect.height))>>0;
+                    mouse.x = x;
+                    mouse.y = y;
+                };
+                
+                let then = Date.now();
+                const onMouseMove = (px,py)=>{
+                    const rect = canvas.getBoundingClientRect();
+                    const x = (px*(Info.W/rect.width))>>0;
+                    const y = (py*(Info.H/rect.height))>>0;
+                    update.uniforms.u_prevCursor = [mouse.x,mouse.y];
+                    update.uniforms.u_cursor = [x,y];
+                    mouse.x = x;
+                    mouse.y = y;
+                    onUpdate();
+                    onDraw();
+                };
+                
+                const onMouseUp = ()=>{
+                    onDraw();
+                    mouse.click = false;
+                    document.body.style.cursor = "default";
+                };
+                
+                const Type = {
+                    RGB:0,
+                    MAP:1
+                };
+                
+                const input = [
+                    crel("input",{"id":"RGB","type":"radio","name":"mode","checked":true}),
+                    crel("input",{"id":"MAP","type":"radio","name":"mode","checked":false})
+                ];
+                
+                input[Type.RGB].onchange=(e)=>{
+                    draw.uniforms.u_type = Type.RGB;
+                    onDraw();
+                };
+                
+                input[Type.MAP].onchange=(e)=>{
+                    draw.uniforms.u_type = Type.MAP;
+                    onDraw();
+                };
+                
+                const footer = crel("div",{"id":"footer"});
+                crel(document.body,
+                    crel(footer,
+                        crel("form",
+                            input[Type.RGB],
+                            crel("label",{"for":"RGB"},"RGB"),
+                            input[Type.MAP],
+                            crel("label",{"for":"MAP"},"MAP")
+                        )
+                    )
+                );
+                
+                if("ontouchstart" in document.documentElement) {
                     
-                    menuitem.textContent = "Download "+((draw.uniforms.u_type==1)?"MAP":"RGB");
-                    contextmenu.style.left = (e.pageX-16)+"px";
-                    contextmenu.style.top = (e.pageY-30)+"px";
-                    contextmenu.classList.add("appear");
-                    contextmenu.style.background = "#07F";
-                    contextmenu.style.color = "#EEE";
-                    
-                });
-                
-                const slider = crel("div",{"class":"slider"},crel("div",{"class":"bar"}));
-                crel(footer,slider);
-                
-                /*
-                const info = crel("div",{"id":"info"},crel("p","i"));
-                crel(footer,info);
-                info.addEventListener("mouseover",(e)=>{});
-                info.addEventListener("mouseout",(e)=>{});
-                */
-                
-                window.addEventListener("mousedown",(e)=>{
-                    const x = e.pageX;
-                    const y = e.pageY;
-                    if(contextmenu.classList.contains("appear")) {
-                        if(hitTest(x,y,contextmenu.getBoundingClientRect())) {
-                            onDraw();
-                            gl.readPixels(0,0,Info.W,Info.H,gl.RGBA,gl.UNSIGNED_BYTE,BUFFER.buffer);
-                            download();
-                        }
-                        contextmenu.classList.remove("appear");
-                    }
-                    else if(hitTest(x,y,slider.getBoundingClientRect())) {
-
-                        mouse.click = true;
-                        document.body.style.cursor = "pointer";
-
-                        mouse.targrt=slider;
-                        
-                        const rect = slider.getBoundingClientRect();
-                        let value = e.pageX-rect.left;
-                        if(value<=0) value = 0;
-                        else if(value>=rect.width) value = rect.width;
-                        value/=rect.width;
-                        slider.querySelector(".bar").style.width = ((value*100)>>0)+"%";
-                        draw.uniforms.u_wet = value;
-                        onDraw();
-                    }
-                    else {
+                    document.addEventListener("touchstart",(e)=>{
+                        const touchObject = e.targetTouches[0];
+                        const x = touchObject.pageX;
+                        const y = touchObject.pageY;
                         const rect = canvas.getBoundingClientRect();
                         if(hitTest(x,y,rect)) {
+                            e.preventDefault();
                             onMouseDown(x-rect.left,y-rect.top);
                         }
-                    }
-                });
-                
-                window.addEventListener("mousemove",(e)=>{
+                    },{passive:false});
                     
-                    if(mouse.click) {
+                    document.addEventListener("touchmove",(e)=>{
+                        e.preventDefault();
+                        if(mouse.click) {
+                            const touchObject = e.targetTouches[0];
+                            const rect = canvas.getBoundingClientRect();
+                            onMouseMove(touchObject.pageX-rect.left,touchObject.pageY-rect.top);
+                        }
+                    },{passive:false});
+                    
+                    document.addEventListener("touchend",(e)=>{
+                        if(mouse.click) onMouseUp();
+                    },{passive:false});
+                    
+                    document.addEventListener("touchcansel",(e)=>{
+                        if(mouse.click) onMouseUp();
+                    },{passive:false});
+                    
+                }
+                else {
+                    
+                    contextmenu.addEventListener("mouseover",(e)=>{
+                        contextmenu.style.background = "#07F";
+                        contextmenu.style.color = "#EEE";
+                    });
+                    
+                    contextmenu.addEventListener("mouseout",(e)=>{
+                        contextmenu.style.background = "#EEE";
+                        contextmenu.style.color = "#222";
+                    });
+                    
+                    canvas.oncontextmenu = ()=>{ return false; }
+                    canvas.addEventListener("contextmenu",(e)=>{
                         
-                        const current = Date.now();
-                        if(current-then<16.6) return; 
-                        then = current;
+                        mouse.click = true;
                         
-                        if(mouse.targrt===slider) {
+                        menuitem.textContent = "Download "+((draw.uniforms.u_type==1)?"MAP":"RGB");
+                        contextmenu.style.left = (e.pageX-16)+"px";
+                        contextmenu.style.top = (e.pageY-30)+"px";
+                        contextmenu.classList.add("appear");
+                        contextmenu.style.background = "#07F";
+                        contextmenu.style.color = "#EEE";
+                        
+                    });
+                    
+                    const slider = crel("div",{"class":"slider"},crel("div",{"class":"bar"}));
+                    crel(footer,slider);
+                    
+                    /*
+                    const info = crel("div",{"id":"info"},crel("p","i"));
+                    crel(footer,info);
+                    info.addEventListener("mouseover",(e)=>{});
+                    info.addEventListener("mouseout",(e)=>{});
+                    */
+                    
+                    window.addEventListener("mousedown",(e)=>{
+                        const x = e.pageX;
+                        const y = e.pageY;
+                        if(contextmenu.classList.contains("appear")) {
+                            if(hitTest(x,y,contextmenu.getBoundingClientRect())) {
+                                onDraw();
+                                gl.readPixels(0,0,Info.W,Info.H,gl.RGBA,gl.UNSIGNED_BYTE,BUFFER.buffer);
+                                download();
+                            }
+                            contextmenu.classList.remove("appear");
+                        }
+                        else if(hitTest(x,y,slider.getBoundingClientRect())) {
+    
+                            mouse.click = true;
+                            document.body.style.cursor = "pointer";
+    
+                            mouse.targrt=slider;
+                            
                             const rect = slider.getBoundingClientRect();
                             let value = e.pageX-rect.left;
                             if(value<=0) value = 0;
@@ -676,220 +648,253 @@ void main() {
                         }
                         else {
                             const rect = canvas.getBoundingClientRect();
-                            onMouseMove(e.pageX-rect.left,e.pageY-rect.top);
+                            if(hitTest(x,y,rect)) {
+                                onMouseDown(x-rect.left,y-rect.top);
+                            }
                         }
-                    }
-                });
-                
-                window.addEventListener("mouseup",(e)=>{
-                    if(mouse.click) onMouseUp();
-                    mouse.targrt = null;
-                });
-            }
-            
-            draw.uniforms.u_type = 1;
-            
-            onUpdate();
-            onDraw();
-            
-            const stage = new class {
-                constructor() {
-                    this.width = 0;
-                    this.height = 0;
-                    this._count = Symbol();
-                    this[this._count] = 0;
-                }
-                reset() {
-                    this[this._count] = 4;
-                }
-                resize() {
-                    if(this[this._count]>0) this[this._count]-=1;
-                    return (this[this._count])?true:false;
-                }
-            };
-            
-            const FH = 32; 
-            const MARGIN_SCALE = 0.1;
-            const MIN_MARGIN = 24; 
-            
-            const resize = ()=>{
-                if(!((stage.width===window.innerWidth)&&(stage.height===window.innerHeight))) {
-                    stage.width = window.innerWidth;
-                    stage.height = window.innerHeight;
-                    let w = CLIP(stage.width,Info.W);
-                    let h = CLIP(stage.height-FH,Info.H-FH);
-                    h-=(h*MARGIN_SCALE<MIN_MARGIN)?MIN_MARGIN:(h*MARGIN_SCALE);
-                    w-=(w*MARGIN_SCALE<MIN_MARGIN)?MIN_MARGIN:(w*MARGIN_SCALE);
-                    if(w/Info.W>h/(Info.H-FH)) {
-                        const width = (h/(Info.H-FH))*Info.W;
-                        Object.assign(canvas.style,{
-                            left:((stage.width-width)>>1)+"px",
-                            top:(((stage.height-FH)-h)>>1)+"px",
-                            width:width+"px",
-                            height:h+"px"
-                        });
-                    }
-                    else {
-                        const height = (w/Info.W)*(Info.H-FH);
-                        Object.assign(canvas.style,{
-                            left:((stage.width-w)>>1)+"px",
-                            top:(((stage.height-FH)-height)>>1)+"px",
-                            width:w+"px",
-                            height:height+"px",
-                        });
-                    }
-                }
-            }
-            
-            const replace = (src,w,h)=>{
-                gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,src);
-            }
-            
-            window.addEventListener("resize",(e)=>{ stage.reset(); });
-            
-            setInterval((e)=>{
-                resize();
-            },33);
-            
-            resize();
-                
-            window.addEventListener("drop",(e)=>{
-                e.preventDefault();
-                e.stopPropagation();
-                if(e.dataTransfer.files.length===1) {
-                    const file = e.dataTransfer.files[0];
-                    const url = URL.createObjectURL(file);
-                    if(file.type==="image/jpeg") {
-                                                        
-                        const img = new Image();
-                        img.onload = (e)=>{
-                                
-                            if(Info.W==img.naturalWidth&&Info.H==img.naturalHeight) {
-                                
-                                error.style.opacity = 0;
-
-                                gl.bindTexture(gl.TEXTURE_2D,jpg);
-                                replace(img,Info.W,Info.H);
-                                gl.bindTexture(gl.TEXTURE_2D,null);
+                    });
+                    
+                    window.addEventListener("mousemove",(e)=>{
+                        
+                        if(mouse.click) {
+                            
+                            const current = Date.now();
+                            if(current-then<16.6) return; 
+                            then = current;
+                            
+                            if(mouse.targrt===slider) {
+                                const rect = slider.getBoundingClientRect();
+                                let value = e.pageX-rect.left;
+                                if(value<=0) value = 0;
+                                else if(value>=rect.width) value = rect.width;
+                                value/=rect.width;
+                                slider.querySelector(".bar").style.width = ((value*100)>>0)+"%";
+                                draw.uniforms.u_wet = value;
                                 onDraw();
                             }
                             else {
-                                
-                                if(img.naturalWidth>1920*2||img.naturalHeight>1080*2) {
+                                const rect = canvas.getBoundingClientRect();
+                                onMouseMove(e.pageX-rect.left,e.pageY-rect.top);
+                            }
+                        }
+                    });
+                    
+                    window.addEventListener("mouseup",(e)=>{
+                        if(mouse.click) onMouseUp();
+                        mouse.targrt = null;
+                    });
+                }
+                
+                draw.uniforms.u_type = 1;
+                
+                onUpdate();
+                onDraw();
+                
+                const stage = new class {
+                    constructor() {
+                        this.width = 0;
+                        this.height = 0;
+                        this._count = Symbol();
+                        this[this._count] = 0;
+                    }
+                    reset() {
+                        this[this._count] = 4;
+                    }
+                    resize() {
+                        if(this[this._count]>0) this[this._count]-=1;
+                        return (this[this._count])?true:false;
+                    }
+                };
+                
+                const FH = 32; 
+                const MARGIN_SCALE = 0.1;
+                const MIN_MARGIN = 24; 
+                
+                const resize = ()=>{
+                    if(!((stage.width===window.innerWidth)&&(stage.height===window.innerHeight))) {
+                        stage.width = window.innerWidth;
+                        stage.height = window.innerHeight;
+                        let w = CLIP(stage.width,Info.W);
+                        let h = CLIP(stage.height-FH,Info.H-FH);
+                        h-=(h*MARGIN_SCALE<MIN_MARGIN)?MIN_MARGIN:(h*MARGIN_SCALE);
+                        w-=(w*MARGIN_SCALE<MIN_MARGIN)?MIN_MARGIN:(w*MARGIN_SCALE);
+                        if(w/Info.W>h/(Info.H-FH)) {
+                            const width = (h/(Info.H-FH))*Info.W;
+                            Object.assign(canvas.style,{
+                                left:((stage.width-width)>>1)+"px",
+                                top:(((stage.height-FH)-h)>>1)+"px",
+                                width:width+"px",
+                                height:h+"px"
+                            });
+                        }
+                        else {
+                            const height = (w/Info.W)*(Info.H-FH);
+                            Object.assign(canvas.style,{
+                                left:((stage.width-w)>>1)+"px",
+                                top:(((stage.height-FH)-height)>>1)+"px",
+                                width:w+"px",
+                                height:height+"px",
+                            });
+                        }
+                    }
+                }
+                
+                const replace = (src,w,h)=>{
+                    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,src);
+                }
+                
+                window.addEventListener("resize",(e)=>{ stage.reset(); });
+                
+                setInterval((e)=>{
+                    resize();
+                },33);
+                
+                resize();
+                    
+                window.addEventListener("drop",(e)=>{
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if(e.dataTransfer.files.length===1) {
+                        const file = e.dataTransfer.files[0];
+                        const url = URL.createObjectURL(file);
+                        if(file.type==="image/jpeg") {
+                                                            
+                            const img = new Image();
+                            img.onload = (e)=>{
                                     
-                                    error.textContent = "Error: JPG size must be no larger than 3840x2160.";
-                                    error.style.opacity = 1;
+                                if(Info.W==img.naturalWidth&&Info.H==img.naturalHeight) {
                                     
+                                    error.style.opacity = 0;
+    
+                                    gl.bindTexture(gl.TEXTURE_2D,jpg);
+                                    replace(img,Info.W,Info.H);
+                                    gl.bindTexture(gl.TEXTURE_2D,null);
+                                    onDraw();
                                 }
                                 else {
+                                    
+                                    if(img.naturalWidth>1920*2||img.naturalHeight>1080*2) {
+                                        
+                                        error.textContent = "Error: JPG size must be no larger than 3840x2160.";
+                                        error.style.opacity = 1;
+                                        
+                                    }
+                                    else {
+                                        
+                                        error.style.opacity = 0;
+                                        
+                                        Info.W = img.naturalWidth;
+                                        Info.H = img.naturalHeight;
+                                        
+                                        canvas.width = Info.W;
+                                        canvas.height = Info.H;
+                                        
+                                        PIXEL.cleanup();
+                                        PNG.cleanup();
+                                        XY.cleanup();
+                                        BUFFER.cleanup();
+                                        BLACK.cleanup();
+                                        
+                                        PIXEL = new U8((Info.W*Info.H)<<2);
+                                        PNG = new U8(PNG_HEADER_SIZE+((Info.W*Info.H)<<2));
+                                        XY = new F32((Info.W*Info.H)<<1);
+                                        BUFFER = new U8((Info.W*Info.H)<<2);
+                                        BLACK = new U8((Info.W*Info.H)<<2);
+                                        
+                                        resetMap(XY.buffer.byteOffset,Info.W,Info.H);
+                                        
+                                        for(var k=0; k<Info.W*Info.H; k++) {
+                                            const addr = k<<2;
+                                            BLACK.buffer[addr+0] = BLACK.buffer[addr+1] = BLACK.buffer[addr+2] = 0;
+                                            BLACK.buffer[addr+3] = 255;
+                                        }
+                                        
+                                        Texture.cleanup(jpg);
+                                        Texture.cleanup(map);
+                                        
+                                        jpg = Texture.createU32(img);
+                                        draw.uniforms.u_jpg = jpg;
+                                        
+                                        map = Texture.createF32();
+                                        
+                                        update.uniforms.u_resolution = [Info.W,Info.H];
+                                        draw.uniforms.u_resolution = [Info.W,Info.H];
+                                        
+                                        Framebuffer.cleanup(FBO[0]);
+                                        Framebuffer.cleanup(FBO[1]);
+                                        
+                                        FBO = [
+                                            Framebuffer.create(Info.W,Info.H),
+                                            Framebuffer.create(Info.W,Info.H)
+                                        ];
+                                        
+                                        stage.width = stage.height = 0;
+                                        resize();
+                                        
+                                        frame = -1;
+                                        update.uniforms.u_prevCursor = [0.5,0.5];
+                                        update.uniforms.u_cursor = [0.5,0.5];
+                                        onUpdate();
+                                        onDraw();
+                                    }
+                                }
+                            };
+                            img.src = url;
+                        }
+                        else if(file.type==="image/png") {
+                            fetch(url).then((response)=>{
+                                if(response.ok) {
+                                    return response.arrayBuffer();
+                                }
+                                else {
+                                    throw new Error(response.status);
+                                }
+                            }).then((arrayBuffer)=>{
+                                const bytes = new Uint8Array(arrayBuffer);
+                                if(bytes.length<=PNG.length) {
                                     
                                     error.style.opacity = 0;
                                     
-                                    Info.W = img.naturalWidth;
-                                    Info.H = img.naturalHeight;
-                                    
-                                    canvas.width = Info.W;
-                                    canvas.height = Info.H;
-                                    
-                                    PIXEL.cleanup();
-                                    PNG.cleanup();
-                                    XY.cleanup();
-                                    BUFFER.cleanup();
-                                    BLACK.cleanup();
-                                    
-                                    PIXEL = new U8((Info.W*Info.H)<<2);
-                                    PNG = new U8(PNG_HEADER_SIZE+((Info.W*Info.H)<<2));
-                                    XY = new F32((Info.W*Info.H)<<1);
-                                    BUFFER = new U8((Info.W*Info.H)<<2);
-                                    BLACK = new U8((Info.W*Info.H)<<2);
-                                    
-                                    resetMap(XY.buffer.byteOffset,Info.W,Info.H);
-                                    
-                                    for(var k=0; k<Info.W*Info.H; k++) {
-                                        const addr = k<<2;
-                                        BLACK.buffer[addr+0] = BLACK.buffer[addr+1] = BLACK.buffer[addr+2] = 0;
-                                        BLACK.buffer[addr+3] = 255;
+                                    PNG.buffer.set(bytes);
+                                if(decodePNG(PIXEL.buffer.byteOffset,Info.W,Info.H,PNG.buffer.byteOffset,bytes.length)) {
+                                        replaceMap(XY.buffer.byteOffset,Info.W,Info.H,PIXEL.buffer.byteOffset);
+                                        gl.bindTexture(gl.TEXTURE_2D,map);
+                                        gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,Info.W,Info.H,gl.RG,gl.FLOAT,XY.buffer);
+                                        gl.bindTexture(gl.TEXTURE_2D,null);
+                                        
+                                        frame = -1;
+                                        update.uniforms.u_prevCursor = [0.5,0.5];
+                                        update.uniforms.u_cursor = [0.5,0.5];
+                                        onUpdate();
+                                        onDraw();
                                     }
-                                    
-                                    Texture.cleanup(jpg);
-                                    Texture.cleanup(map);
-                                    
-                                    jpg = Texture.createU32(img);
-                                    draw.uniforms.u_jpg = jpg;
-                                    
-                                    map = Texture.createF32();
-                                    
-                                    update.uniforms.u_resolution = [Info.W,Info.H];
-                                    draw.uniforms.u_resolution = [Info.W,Info.H];
-                                    
-                                    Framebuffer.cleanup(FBO[0]);
-                                    Framebuffer.cleanup(FBO[1]);
-                                    
-                                    FBO = [
-                                        Framebuffer.create(Info.W,Info.H),
-                                        Framebuffer.create(Info.W,Info.H)
-                                    ];
-                                    
-                                    stage.width = stage.height = 0;
-                                    resize();
-                                    
-                                    frame = -1;
-                                    update.uniforms.u_prevCursor = [0.5,0.5];
-                                    update.uniforms.u_cursor = [0.5,0.5];
-                                    onUpdate();
-                                    onDraw();
-                                }
-                            }
-                        };
-                        img.src = url;
-                    }
-                    else if(file.type==="image/png") {
-                        fetch(url).then((response)=>{
-                            if(response.ok) {
-                                return response.arrayBuffer();
-                            }
-                            else {
-                                throw new Error(response.status);
-                            }
-                        }).then((arrayBuffer)=>{
-                            const bytes = new Uint8Array(arrayBuffer);
-                            if(bytes.length<=PNG.length) {
-                                
-                                error.style.opacity = 0;
-                                
-                                PNG.buffer.set(bytes);
-                            if(decodePNG(PIXEL.buffer.byteOffset,Info.W,Info.H,PNG.buffer.byteOffset,bytes.length)) {
-                                    replaceMap(XY.buffer.byteOffset,Info.W,Info.H,PIXEL.buffer.byteOffset);
-                                    gl.bindTexture(gl.TEXTURE_2D,map);
-                                    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,Info.W,Info.H,gl.RG,gl.FLOAT,XY.buffer);
-                                    gl.bindTexture(gl.TEXTURE_2D,null);
-                                    
-                                    frame = -1;
-                                    update.uniforms.u_prevCursor = [0.5,0.5];
-                                    update.uniforms.u_cursor = [0.5,0.5];
-                                    onUpdate();
-                                    onDraw();
+                                    else {
+                                        error.textContent = "Error: PNG size must be "+Info.W+"x"+Info.H+".";
+                                        error.style.opacity = 1;
+                                    }
                                 }
                                 else {
-                                    error.textContent = "Error: PNG size must be "+Info.W+"x"+Info.H+".";
+                                    error.textContent = "Error";
                                     error.style.opacity = 1;
                                 }
-                            }
-                            else {
-                                error.textContent = "Error";
-                                error.style.opacity = 1;
-                            }
-                            
-                        }).catch((e)=>{
-                            console.log(e);
-                        });
+                                
+                            }).catch((e)=>{
+                                console.log(e);
+                            });
+                        }
+                        else {
+                            console.log("unknown filetype: "+file.type);
+    
+                        }
                     }
-                    else {
-                        console.log("unknown filetype: "+file.type);
-
-                    }
-                }
-            });
+                });
+            }
+            else {
+                
+                error.textContent = "Error: Not supported";
+                error.style.opacity = 1;
+                
+            }
         }
         
         DEFAULT_IMAGE.onload = ()=>{
