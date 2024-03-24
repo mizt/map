@@ -1,348 +1,904 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8">
-		<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-		<title>map</title>
-		<style>
-			
-			* {
-				margin:0; 
-				padding:0;
-				font-family:"Hiragino Kaku Gothic Pro","ヒラギノ角ゴ Pro W3","メイリオ",Meiryo,"ＭＳ Ｐゴシック",sans-serif;
-				letter-spacing:1.5px;
-			}
-			
-			::selection { background:rgba(128,128,128,0.25); }
-			::-moz-selection { background:rgba(128,128,128,0.25); }
-			pre::selection { background:rgba(255,255,255,0.25); }
-			pre::-moz-selection { background:rgba(255,255,255,0.25); }
-			img::selection, iframe::selection { background:rgba(0,0,0,0); }
-			img::-moz-selection, iframe::-moz-selection { background:rgba(0,0,0,0); }
+<html><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <title>Map</title>
+    <script src="twgl.min.js"></script>
+    <script src="./libs.js"></script>
+    <style>
+        
+        * {
+            margin:0;
+            padding:0;
+            font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+            letter-spacing:0.05em;
+        }
+        
+        body {
+            background:#888;
+            width:100%;
+            height:100vh;
+            -webkit-user-select:none;
+            -webkit-user-drag:none;
+            overflow:hidden;
+        }
+        
+        canvas {
+            position:absolute;
+            top:0;
+            left:0;
+            z-index:0;
+            vertical-align:top;
+            cursor:pointer;
+        }
+        
+        #contextmenu {
+            display:none;
+            overflow:hidden;
+            white-space:nowrap;
+            color:#222;
+            background:#EEE;
+            font-size:12px;
+            letter-spacing:0.075em;
+            line-height:24px;
+            position:fixed;
+            z-index:1024;
+            left:0px;
+            top:0px;
+            padding:8px 12px;
+            border-radius:4px;
+            box-shadow:6px 6px 12px rgba(0,0,0,0.1);
+            cursor:pointer;
+        }
+        
+        #contextmenu.appear {
+            display:inline-block;
+        }
+        
+        #footer {
+            z-index:1024;
+            position:fixed;
+            left:0;
+            bottom:0;
+            width:100%;
+            height:32px;
+            background:rgb(64,64,64);
+            margin:0;
+            padding:0;
+            -webkit-user-select:none;
+            font-size:14px;
+            letter-spacing:0.025em;
+            color:#CCC;
+        }
+        
+        #footer form {
+            display:inline-block;
+            vertical-align:top;
+        }
+        
+        #footer div.slider {
+            display:inline-block;
+            vertical-align:top;
+            width:128px;
+            margin:10px 16px;
+            height:12px;
+            background:#CCC;
+            cursor:pointer;
+        }
+        
+        #footer div.slider .bar {
+            width:100%;
+            height:100%;
+            background:#FFF;
+        }
+        
+        #footer label {
+            padding:0 0 0 12px;
+            margin-left:8px;
+            font-size:14px;
+            line-height:32px;
+            height:32px;
+            display:inline-block;
+            cursor:pointer;
+            position:relative;
+        }
+        
+        #footer input[type="radio"] {
+            display:none;
+        }
+        
+        #footer input[type="radio"]:checked + label:after {
+            content:'';
+            position:absolute;
+            width:8px;
+            height:8px;
+            top:12px;
+            left:0px;
+            background-color:#CCC;
+            border-radius:50%;
+        }
+        
+        #footer label:before {
+            content:'';
+            position:absolute;
+            width:4px;
+            height:4px;
+            top:14px;
+            left:2px;
+            background-color:#CCC;
+            border-radius:50%;
+        }
+        
+        #footer div#info {
+            position:absolute;
+            top:0;
+            right:0;
+            padding:0 16px;
+            font-size:14px;
+            line-height:32px;
+            height:32px;
+            display:inline-block;
+            cursor:pointer;
+            color:#CCC;
+            background:#222;
+        }
+        
+        div#err {
+            user-select:none;
+            -moz-user-select:none;
+            -webkit-user-select:none;
+            -ms-user-select:none;
+            cursor:default;
+            position:absolute;
+            z-index:1024;
+            font-size:10px;
+            line-height:12px;
+            padding:1px 2px;
+            color:#0FF;
+        }
+        
+        @keyframes spinner {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        div#loading {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        div#loading::before {
+            content:"";
+            position:absolute;
+            top:50%;
+            left:50%;
+            width:96px;
+            height:96px;
+            margin-top:-54px;
+            margin-left:-54px;
+            border-radius:50%;
+            border:4px solid rgba(255,255,255,0.2);
+            border-top-color:transparent;
+            animation: spinner 1s linear infinite;
+        }
+    
+    </style>
+</head>
+<body>
+    <script>
+        
+        // https://github.com/KoryNunn/crel
+        (e=>{const t="function",n="isNode",o=(e,t)=>typeof e===t,r=(e,t)=>{null!==t&&(Array.isArray(t)?t.map(t=>r(e,t)):(i[n](t)||(t=document.createTextNode(t)),e.appendChild(t)))};function i(e,a){let d,f,l=arguments,c=1;if(e=i.isElement(e)?e:document.createElement(e),o(a,"object")&&!i[n](a)&&!Array.isArray(a))for(d in c++,a)f=a[d],o(d=i.attrMap[d]||d,t)?d(e,f):o(f,t)?e[d]=f:e.setAttribute(d,f);for(;c<l.length;c++)r(e,l[c]);return e}i.attrMap={},i.isElement=(e=>e instanceof Element),i[n]=(e=>e instanceof Node),i.proxy=new Proxy(i,{get:(e,t)=>(!(t in i)&&(i[t]=i.bind(null,t)),i[t])}),e(i,t)})((e,t)=>{"object"==typeof exports?module.exports=e:typeof define===t&&define.amd?define(()=>e):this.crel=e});
+            
+        const loading = crel("div",{"id":"loading"});
+        crel(document.body,loading);
+        
+        const error = crel("div",{"id":"err"},crel("p","Error: JPG size must be no larger than 3840x2160."));
+        error.style.opacity = 0;
+        crel(document.body,error);
+        
+        const DEFAULT_IMAGE = new Image();
+        const DEFAULT_URL = "src.jpg";
+            
+        class U8 {
+            constructor(len) {
+                this.length = len;
+                this.bytes = Module._malloc(len);
+                this.buffer = new Uint8Array(Module.HEAPU8.buffer,this.bytes,len);
+                //console.log(this.bytes);
+            }
+            cleanup() {
+                Module._free(this.bytes);
+                this.buffer = null;
+            }
+        };
+        
+        class F32 {
+            constructor(len) {
+                this.length = len;
+                this.bytes = Module._malloc(len*4);
+                this.buffer = new Float32Array(Module.HEAPF32.buffer,this.bytes,len);
+                //console.log(this.bytes);
+            }
+            cleanup() {
+                Module._free(this.bytes);
+                this.buffer = null;
+            }
+        };
+        
+        const Info = {
+            W:1920,
+            H:1080
+        } 
+        
+        const PNG_HEADER_SIZE = 58;
+        
+        const CLIP = function(value,max) { return (max<=value)?max:value; }
+        const CLAMP = function(min,value,max) { return (value<=min)?min:CLIP(value,max); }
+        
+        const contextmenu = crel("div",{"id":"contextmenu"});
+        const menuitem = crel("p");
+        contextmenu.appendChild(menuitem);
+        document.body.appendChild(contextmenu);
+        
+        const hitTest = (x,y,bounds)=>{
+            if((bounds.left<=x&&x<=(bounds.right-1)&&bounds.top<=y&&y<=(bounds.bottom)-1)) {
+                return true;
+            }
+            return false;
+        }
+            
+        window.addEventListener("dragover",(e)=>{
+            e.preventDefault();
+            e.stopPropagation();
+        });
+            
+        const initialize = ()=>{
+            
+            document.body.removeChild(loading);
+            
+            let frame = -1;
+            
+            let PIXEL = new U8((Info.W*Info.H)<<2);
+            let PNG = new U8(PNG_HEADER_SIZE+((Info.W*Info.H)<<2));
+            let XY = new F32((Info.W*Info.H)<<1);
+            let BUFFER = new U8((Info.W*Info.H)<<2);
+            let BLACK = new U8((Info.W*Info.H)<<2);
+            for(var k=0; k<Info.W*Info.H; k++) {
+                const addr = k<<2;
+                BLACK.buffer[addr+0] = BLACK.buffer[addr+1] = BLACK.buffer[addr+2] = 0;
+                BLACK.buffer[addr+3] = 255;
+            }
+            
+            const decodePNG = Module.cwrap("decodePNG","number",["number","number","number","number","number","number"]);
+            const encodePNG = Module.cwrap("encodePNG","number",["number","number","number","number","number"]);
+            
+            const resetMap = Module.cwrap("resetMap","void",["number","number","number"]);
+            const replaceMap = Module.cwrap("replaceMap","void",["number","number","number","number"]);
+            resetMap(XY.buffer.byteOffset,Info.W,Info.H);
+            
+            const download = ()=>{
+                
+                if(draw.uniforms.u_type==0) {
+                    for(var i=0; i<Info.H; i++) {
+                        for(var j=0; j<Info.W; j++) {
+                            const dst = (i*Info.W+j)<<2;
+                            const src = (((Info.H-1)-i)*Info.W+j)<<2;
+                            PIXEL.buffer[dst+0] = BUFFER.buffer[src+0];
+                            PIXEL.buffer[dst+1] = BUFFER.buffer[src+1];
+                            PIXEL.buffer[dst+2] = BUFFER.buffer[src+2];
+                            PIXEL.buffer[dst+3] = BUFFER.buffer[src+3];
+                        }
+                    }
+                }
+                else {
+                    for(var i=0; i<Info.H; i++) {
+                        for(var j=0; j<Info.W; j++) {
+                            const dst = (i*Info.W+j)<<2;
+                            const src = (((Info.H-1)-i)*Info.W+j)<<2;
+                            PIXEL.buffer[dst+0] = BUFFER.buffer[src+2];
+                            PIXEL.buffer[dst+1] = BUFFER.buffer[src+1];
+                            PIXEL.buffer[dst+2] = BUFFER.buffer[src+0];
+                            PIXEL.buffer[dst+3] = BUFFER.buffer[src+3];
+                        }
+                    }
+                }
+                
+                const size = encodePNG(PIXEL.buffer.byteOffset,Info.W,Info.H,4,PNG.buffer.byteOffset);
+                if(size>0) {
+                    const bytes = PNG.buffer.slice(0,size);
+                    const link = crel("a");
+                    link.download = (draw.uniforms.u_type==0)?"image.png":"map.png";
+                    link.href = URL.createObjectURL(new Blob([bytes],{type:"image/png"}));
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                }
+            }
+            
+            const canvas = crel("canvas",{width:Info.W,height:Info.H});
+            crel(document.body,canvas);
+            
+            const gl = canvas.getContext("webgl2",{antialias:false});
+            gl.getExtension("EXT_color_buffer_float");
+            gl.getExtension("OES_texture_float");
+            gl.getExtension("OES_texture_float_linear");
+            
+            const bufferInfo = twgl.createBufferInfoFromArrays(gl,{
+                position:{numComponents:3,data:[-1,-1,0,1,-1,0,-1,1,0,1,1,0]},
+                texcoord:{numComponents:2,data:[0,0,1,0,0,1,1,1]},
+                indices:{numComponents:3,data:[0,1,2,1,2,3]},
+            });
+            
+            const setTexParameteri = ()=>{
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+            }
+            
+            const fill = (program,info,uniforms)=>{
+                gl.viewport(0,0,Info.W,Info.H);
+                gl.clearColor(0,0,0,0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.useProgram(program);
+                twgl.setBuffersAndAttributes(gl,info,bufferInfo);
+                twgl.setUniforms(info,uniforms);
+                gl.drawElements(gl.TRIANGLES,bufferInfo.numElements,gl.UNSIGNED_SHORT,0);
+            }
+            
+            const Framebuffer = {
+                create:(w,h)=>{
+                    const frameBuffer = gl.createFramebuffer();
+                    gl.bindFramebuffer(gl.FRAMEBUFFER,frameBuffer);
+                    const texture = gl.createTexture();
+                    gl.bindTexture(gl.TEXTURE_2D,texture);
+                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32F,w,h,0,gl.RG,gl.FLOAT,null);
+                    setTexParameteri();
+                    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,texture,0);
+                    gl.bindTexture(gl.TEXTURE_2D,null);
+                    gl.bindRenderbuffer(gl.RENDERBUFFER,null);
+                    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+                    return { frameBuffer:frameBuffer, texture:texture };
+                },
+                cleanup:(fbo)=>{
+                    gl.deleteFramebuffer(fbo.frameBuffer);
+                    gl.deleteTexture(fbo.texture);
+                }
+            };
+            
+            let FBO = [
+                Framebuffer.create(Info.W,Info.H),
+                Framebuffer.create(Info.W,Info.H)
+            ];
+            
+            const VS = `#version 300 es
+precision highp float;
+in vec2 texcoord;
+in vec4 position;
+out vec2 v_texCoord;
+void main() {
+    v_texCoord = texcoord; 
+    gl_Position = position; 
+}`;
+            
+            const update = {
+                fs:`#version 300 es
+precision highp float;
+in vec2 v_texCoord; 
+uniform sampler2D u_map; 
+uniform vec2 u_cursor;
+uniform vec2 u_prevCursor;
+uniform vec2 u_resolution;
+out vec2 FragColor;
+void main() { 
+    vec2 aspect = vec2(1.0,u_resolution.y/u_resolution.x);
+    float radius=0.4;
+    float mask = 0.5*smoothstep(radius,0.0,distance((2.0*v_texCoord-1.0)*aspect,(2.0*(u_cursor/(u_resolution-1.0))-1.0)*aspect));
+    vec2 dir = ((u_cursor-u_prevCursor)/(u_resolution-1.0))*mask;
+    FragColor = texture(u_map,v_texCoord-dir).rg; 
+}`};
+            update.program = twgl.createProgramFromSources(gl,[VS,update.fs]);
+            update.info = twgl.createProgramInfoFromProgram(gl,update.program);
+            update.uniforms = {
+                u_resolution:[Info.W,Info.H]
+            };
+            
+            const draw = {
+                fs:`#version 300 es
+precision highp float;
+in vec2 v_texCoord; 
+uniform sampler2D u_jpg; 
+uniform sampler2D u_map; 
+uniform int u_type;
+uniform float u_wet;
+uniform vec2 u_resolution;
+out vec4 FragColor;
+void main() {
 
+    float offset = 21845.0;
+    float scale = 4.0;
 
-			body {
-				overflow-x:hidden;
-				color:#242424;
-				font-weight:normal;
-				font-size:14px;
-				margin-top:0px;
-				line-height:1em; 
-				padding:18px 0 48px 0;
-				background:#FFF;
-			}
+    vec2 uv = vec2(v_texCoord.x,1.0-v_texCoord.y);
+    vec2 map = offset+uv*u_resolution*scale;
+        
+    ivec2 xy = ivec2(map*(1.0-u_wet)+(65535.0*texture(u_map,uv).rg)*u_wet);
 
-			.container {
-				position:relative;
-				width:88%;
-				max-width:1280px;
-				margin:0 auto 0 auto;
-			}
-			
-			
-			.condensed {
-				position:relative;
-				width:100%;
-				transform-origin:top left;
-				transform:scale(0.87,1);
-			}
-				 
-			h1 {
-				font-weight:600;
-				font-size:24px;
-				line-height:48px; 
-				margin-left:-1px;
-				margin-bottom:14px; 
-			}  
-			
-			h2 { 
-				font-weight:600;
-				font-size:16px;
-				line-height:48px; 
-				margin-top:0px;
-				margin-bottom:0px;  
-				word-wrap: break-word;
-				word-break: break-strict;
-			}
-			
-			h3 {
-				font-weight:600;
-			}
-			
-			ul {
-				margin-left:1.25em;
-				list-style-type:circle;
-			}
-			
-			p, h3, li {
-				font-size:12px;
-				line-height:24px; 
-			}
-			
-			.br {
-				margin-bottom:12px;
-			}
-			
-			
-			div.cell {
-				width:50%;
-				float:left;
-			}
-						
-			pre {
-				font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,Courier,monospace;
-				font-size:13px;
-				line-height:20px;
-				border-radius:2px;
-				padding:12px 16px;
-				background-color:#1d1e39;
-				color:#FEFEFE;
-				tab-size:2;
-				white-space: pre;          
-				white-space: pre-wrap;     
-				white-space: -pre-wrap;    
-				white-space: -o-pre-wrap;  
-				white-space: -moz-pre-wrap;
-				white-space: -hp-pre-wrap;
-				word-wrap: break-word; 
-				word-break:break-all;
-				margin-top:6px; 
-				margin-bottom:6px;  
-			}
-			
-			pre.gray {
-				background-color:#222;
-				color:#AAA;
-				text-decoration:line-through;
-			}
-			
-			pre + pre {
-				margin-top:-6px; 
-				margin-bottom:12px;  
-			}
-			
-			video {
-				max-width:100%;
-				height:auto;
-				margin-top:6px;
-				margin-bottom:6px; 
-				vertical-align:top;
-			}
-			
-			img {
-				vertical-align:top;
-				max-width:100%;
-				height:auto;
-				margin-top:6px;
-			}
-			
-			div.cell img {
-				margin-top:0;
-			}
-			
-			a {
-				color:#00F;
-				text-decoration:underline;
-			}
-			
-			span.red {
-				background-color:rgba(255,32,32,0.2);
-				padding:1px;
-			}
-			
-			span.bold {
-				font-weight:bold;
-			}
-			
-			#lang {
-				user-select:none;
-				font-size:12px;
-				z-index:1000;
-			}
-			
-			#lang span {
-				cursor:pointer;
-			}
-			
-			.en, .jp {
-				display:none;	
-			}
-			
-			
-			
-				
-		</style>
-	</head>
-	<body>
-		<script>
-			
-			!function(e,n){"object"==typeof exports?module.exports=n():"function"==typeof define&&define.amd?define(n):e.crel=n()}(this,function(){function e(){var o,a=arguments,p=a[0],m=a[1],x=2,v=a.length,b=e[f];if(p=e[c](p)?p:d.createElement(p),1===v)return p;if((!l(m,t)||e[u](m)||s(m))&&(--x,m=null),v-x===1&&l(a[x],"string")&&void 0!==p[r])p[r]=a[x];else for(;v>x;++x)if(o=a[x],null!=o)if(s(o))for(var g=0;g<o.length;++g)y(p,o[g]);else y(p,o);for(var h in m)if(b[h]){var N=b[h];typeof N===n?N(p,m[h]):p[i](N,m[h])}else p[i](h,m[h]);return p}var n="function",t="object",o="nodeType",r="textContent",i="setAttribute",f="attrMap",u="isNode",c="isElement",d=typeof document===t?document:{},l=function(e,n){return typeof e===n},a=typeof Node===n?function(e){return e instanceof Node}:function(e){return e&&l(e,t)&&o in e&&l(e.ownerDocument,t)},p=function(n){return e[u](n)&&1===n[o]},s=function(e){return e instanceof Array},y=function(n,t){e[u](t)||(t=d.createTextNode(t)),n.appendChild(t)};return e[f]={},e[c]=p,e[u]=a,"undefined"!=typeof Proxy&&(e.proxy=new Proxy(e,{get:function(n,t){return!(t in e)&&(e[t]=e.bind(null,t)),e[t]}})),e});
+    if(u_type==0) {
+        xy-=int(offset);
+        FragColor = texture(u_jpg,(vec2(xy)/scale)/(u_resolution-1.0));
+    }
+    else {
+        FragColor = vec4(
+            float(xy.x&0xFF)/255.0,
+            float(xy.y>>8)/255.0,
+            float(xy.y&0xFF)/255.0,
+            float(xy.x>>8)/255.0
+        );
+    }
+}`};
+            draw.program = twgl.createProgramFromSources(gl,[VS,draw.fs]);
+            draw.info = twgl.createProgramInfoFromProgram(gl,draw.program);
+            draw.uniforms = {
+                u_wet:1.0,
+                u_resolution:[Info.W,Info.H]
+            };
+            
+            let jpg;
+            let map;
+            
+            const Texture = {
+                createU32:(img)=>{
+                    const texture = gl.createTexture();
+                    gl.bindTexture(gl.TEXTURE_2D,texture);
+                    setTexParameteri();
+                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,Info.W,Info.H,0,gl.RGBA,gl.UNSIGNED_BYTE,img);
+                    gl.bindTexture(gl.TEXTURE_2D,null);
+                    return texture;
+                },
+                createF32:()=>{
+                    const texture = gl.createTexture();
+                    gl.bindTexture(gl.TEXTURE_2D,texture);
+                    setTexParameteri();
+                    gl.texImage2D(gl.TEXTURE_2D,0,gl.RG32F,Info.W,Info.H,0,gl.RG,gl.FLOAT,XY.buffer);
+                    gl.bindTexture(gl.TEXTURE_2D,null);
+                    return texture;
+                },
+                cleanup:(texture)=>{
+                    gl.deleteTexture(texture);
+                }
+            }
+            
+            jpg = Texture.createU32(DEFAULT_IMAGE);
+            draw.uniforms.u_jpg = jpg;
+            
+            map = Texture.createF32();
+            
+            const onUpdate = ()=>{
+                update.uniforms.u_map = (frame!==-1)?FBO[(frame+1)&1].texture:map;
+                gl.bindFramebuffer(gl.FRAMEBUFFER,FBO[frame&1].frameBuffer);
+                fill(update.program,update.info,update.uniforms);
+                gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+                frame++;
+            }
+            
+            const onDraw = ()=>{
+                draw.uniforms.u_map = FBO[(frame+1)&1].texture;
+                fill(draw.program,draw.info,draw.uniforms);
+            }
+            
+            const mouse = {
+                x:0,
+                y:0,
+                click:false,
+                target:null
+            };
+            
+            const onMouseDown = (px,py)=>{
+                mouse.click = true;
+                const rect = canvas.getBoundingClientRect();
+                const x = (px*(Info.W/rect.width))>>0;
+                const y = (py*(Info.H/rect.height))>>0;
+                mouse.x = x;
+                mouse.y = y;
+            };
+            
+            let then = Date.now();
+            const onMouseMove = (px,py)=>{
+                const rect = canvas.getBoundingClientRect();
+                const x = (px*(Info.W/rect.width))>>0;
+                const y = (py*(Info.H/rect.height))>>0;
+                update.uniforms.u_prevCursor = [mouse.x,mouse.y];
+                update.uniforms.u_cursor = [x,y];
+                mouse.x = x;
+                mouse.y = y;
+                onUpdate();
+                onDraw();
+            };
+            
+            const onMouseUp = ()=>{
+                onDraw();
+                mouse.click = false;
+                document.body.style.cursor = "default";
+            };
+            
+            const Type = {
+                RGB:0,
+                MAP:1
+            };
+            
+            const input = [
+                crel("input",{"id":"RGB","type":"radio","name":"mode","checked":true}),
+                crel("input",{"id":"MAP","type":"radio","name":"mode","checked":false})
+            ];
+            
+            input[Type.RGB].onchange=(e)=>{
+                draw.uniforms.u_type = Type.RGB;
+                onDraw();
+            };
+            
+            input[Type.MAP].onchange=(e)=>{
+                draw.uniforms.u_type = Type.MAP;
+                onDraw();
+            };
+            
+            const footer = crel("div",{"id":"footer"});
+            crel(document.body,
+                crel(footer,
+                    crel("form",
+                        input[Type.RGB],
+                        crel("label",{"for":"RGB"},"RGB"),
+                        input[Type.MAP],
+                        crel("label",{"for":"MAP"},"MAP")
+                    )
+                )
+            );
+            
+            if("ontouchstart" in document.documentElement) {
+                
+                document.addEventListener("touchstart",(e)=>{
+                    const touchObject = e.targetTouches[0];
+                    const x = touchObject.pageX;
+                    const y = touchObject.pageY;
+                    const rect = canvas.getBoundingClientRect();
+                    if(hitTest(x,y,rect)) {
+                        e.preventDefault();
+                        onMouseDown(x-rect.left,y-rect.top);
+                    }
+                },{passive:false});
+                
+                document.addEventListener("touchmove",(e)=>{
+                    e.preventDefault();
+                    if(mouse.click) {
+                        const touchObject = e.targetTouches[0];
+                        const rect = canvas.getBoundingClientRect();
+                        onMouseMove(touchObject.pageX-rect.left,touchObject.pageY-rect.top);
+                    }
+                },{passive:false});
+                
+                document.addEventListener("touchend",(e)=>{
+                    if(mouse.click) onMouseUp();
+                },{passive:false});
+                
+                document.addEventListener("touchcansel",(e)=>{
+                    if(mouse.click) onMouseUp();
+                },{passive:false});
+                
+            }
+            else {
+                
+                contextmenu.addEventListener("mouseover",(e)=>{
+                    contextmenu.style.background = "#07F";
+                    contextmenu.style.color = "#EEE";
+                });
+                
+                contextmenu.addEventListener("mouseout",(e)=>{
+                    contextmenu.style.background = "#EEE";
+                    contextmenu.style.color = "#222";
+                });
+                
+                canvas.oncontextmenu = ()=>{ return false; }
+                canvas.addEventListener("contextmenu",(e)=>{
+                    
+                    mouse.click = true;
+                    
+                    menuitem.textContent = "Download "+((draw.uniforms.u_type==1)?"MAP":"RGB");
+                    contextmenu.style.left = (e.pageX-16)+"px";
+                    contextmenu.style.top = (e.pageY-30)+"px";
+                    contextmenu.classList.add("appear");
+                    contextmenu.style.background = "#07F";
+                    contextmenu.style.color = "#EEE";
+                    
+                });
+                
+                const slider = crel("div",{"class":"slider"},crel("div",{"class":"bar"}));
+                crel(footer,slider);
+                
+                /*
+                const info = crel("div",{"id":"info"},crel("p","i"));
+                crel(footer,info);
+                info.addEventListener("mouseover",(e)=>{});
+                info.addEventListener("mouseout",(e)=>{});
+                */
+                
+                window.addEventListener("mousedown",(e)=>{
+                    const x = e.pageX;
+                    const y = e.pageY;
+                    if(contextmenu.classList.contains("appear")) {
+                        if(hitTest(x,y,contextmenu.getBoundingClientRect())) {
+                            onDraw();
+                            gl.readPixels(0,0,Info.W,Info.H,gl.RGBA,gl.UNSIGNED_BYTE,BUFFER.buffer);
+                            download();
+                        }
+                        contextmenu.classList.remove("appear");
+                    }
+                    else if(hitTest(x,y,slider.getBoundingClientRect())) {
 
-			var make = function(b) {
-				for(var k=0; k<b.length; k++) {
-					if(Array.isArray(b[k])) {						
-						b[k] = make(b[k]);
-					}
-				}
-				return crel.apply({},b);				
-			}
-			
-			var Query = {
-							
-				query:undefined,
-				q:{"lang":"en"},
-				get:function(key) {		
-					if(this.query==undefined) {
-						this.query = window.location.search.substring(1);
-						const list = this.query.split("&");
-						for(let i=0;i<list.length;i++) {
-							const pair = list[i].split("=");
-							this.q[pair[0]] = pair[1];
-						}
-					}	
-					return this.q[key];		
-				}
-			}
-									
-			const type = Query.get("lang");
-			//console.log(type);
-			
-			let data = ["div",{"id":"data","style":"width:100%;margin-top:6px;margin-bottom:6px;"}];
-			
-			var block =[
-				{},
-				["div",{"class":"container"},
-					
-					["h1",{"class":"condensed"},"map"],
-					["p",["a",{"href":"https://github.com/mizt/map/"},"This is an experimental project"],".",["br"],["span",{"class":"red"},"No Warranty"],".",["br"]," This Application (including the Data) is provided to you “as is,” and you agree to use it at your own risk."],
-					
-					["h2",{"class":"condensed"},"Demo"],
-					
-					["video",{"src":"map.mp4","width":1920,"height":1080,"autoplay":true,"muted":true,"playsinline":true,"webkit-playsinline":true,"loop":true,"controls":true}],
-					
-					["h2",{"class":"condensed"},"Encode"],
-					
-					["pre",["code","((int)(0x7FFF+(x<<2)))<<16|((int)(0x7FFF+(y<<2)));"]],
-					["h2",{"class":"condensed"},"Decode"],
-					
-					["pre",["code","float x = ((((int(map.a*255.0))<<8|(int(map.b*255.0)))-32767.0)*0.25)/(resolution.x-1.0);\nfloat y = ((((int(map.g*255.0))<<8|(int(map.r*255.0)))-32767.0)*0.25)/(resolution.y-1.0);"]],
-			 		
-					["h2",{"class":"condensed"},"Data"],
+                        mouse.click = true;
+                        document.body.style.cursor = "pointer";
 
-					data
-					
-			
-				]
-			];
-			
-			if(Array.isArray(block)) {
-				for(var k=0; k<block.length; k++) {
-					if(Array.isArray(block[k])) {
-						crel(document.body,make(block[k]));
-					}
-				}
-			}
-			
-			const div = document.getElementById("data");
-			
-			const list = [0,1,30];
-			const img = [];
-		
-			const gray = "data:image/jpeg;base64,/9j/4QAYRXhpZgAASUkqAAgAAAAAAAAAAAAAAP/sABFEdWNreQABAAQAAAAAAAD/4QMuaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLwA8P3hwYWNrZXQgYmVnaW49Iu+7vyIgaWQ9Ilc1TTBNcENlaGlIenJlU3pOVGN6a2M5ZCI/PiA8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJBZG9iZSBYTVAgQ29yZSA1LjYtYzE0OCA3OS4xNjQwMzYsIDIwMTkvMDgvMTMtMDE6MDY6NTcgICAgICAgICI+IDxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+IDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiIHhtbG5zOnhtcD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bXA6Q3JlYXRvclRvb2w9IkFkb2JlIFBob3Rvc2hvcCAyMS4wIChNYWNpbnRvc2gpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOkUyRDE5Qzc5Q0E0QTExRUFBNTQyRTAwNTA1RjY3N0Y5IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOkUyRDE5QzdBQ0E0QTExRUFBNTQyRTAwNTA1RjY3N0Y5Ij4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6RTJEMTlDNzdDQTRBMTFFQUE1NDJFMDA1MDVGNjc3RjkiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6RTJEMTlDNzhDQTRBMTFFQUE1NDJFMDA1MDVGNjc3RjkiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz7/7gAOQWRvYmUAZMAAAAAB/9sAhAAbGhopHSlBJiZBQi8vL0JHPz4+P0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHAR0pKTQmND8oKD9HPzU/R0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0f/wAARCAQ4B4ADASIAAhEBAxEB/8QASgABAAAAAAAAAAAAAAAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAABABAAAAAAAAAAAAAAAAAAAAABEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/9k=";
-		
-			for(let k=0; k<3; k++) {
-				
-				let n = "0000"+list[k];				
+                        mouse.targrt=slider;
+                        
+                        const rect = slider.getBoundingClientRect();
+                        let value = e.pageX-rect.left;
+                        if(value<=0) value = 0;
+                        else if(value>=rect.width) value = rect.width;
+                        value/=rect.width;
+                        slider.querySelector(".bar").style.width = ((value*100)>>0)+"%";
+                        draw.uniforms.u_wet = value;
+                        onDraw();
+                    }
+                    else {
+                        const rect = canvas.getBoundingClientRect();
+                        if(hitTest(x,y,rect)) {
+                            onMouseDown(x-rect.left,y-rect.top);
+                        }
+                    }
+                });
+                
+                window.addEventListener("mousemove",(e)=>{
+                    
+                    if(mouse.click) {
+                        
+                        const current = Date.now();
+                        if(current-then<16.6) return; 
+                        then = current;
+                        
+                        if(mouse.targrt===slider) {
+                            const rect = slider.getBoundingClientRect();
+                            let value = e.pageX-rect.left;
+                            if(value<=0) value = 0;
+                            else if(value>=rect.width) value = rect.width;
+                            value/=rect.width;
+                            slider.querySelector(".bar").style.width = ((value*100)>>0)+"%";
+                            draw.uniforms.u_wet = value;
+                            onDraw();
+                        }
+                        else {
+                            const rect = canvas.getBoundingClientRect();
+                            onMouseMove(e.pageX-rect.left,e.pageY-rect.top);
+                        }
+                    }
+                });
+                
+                window.addEventListener("mouseup",(e)=>{
+                    if(mouse.click) onMouseUp();
+                    mouse.targrt = null;
+                });
+            }
+            
+            draw.uniforms.u_type = 1;
+            
+            onUpdate();
+            onDraw();
+            
+            const stage = new class {
+                constructor() {
+                    this.width = 0;
+                    this.height = 0;
+                    this._count = Symbol();
+                    this[this._count] = 0;
+                }
+                reset() {
+                    this[this._count] = 4;
+                }
+                resize() {
+                    if(this[this._count]>0) this[this._count]-=1;
+                    return (this[this._count])?true:false;
+                }
+            };
+            
+            const FH = 32; 
+            const MARGIN_SCALE = 0.1;
+            const MIN_MARGIN = 24; 
+            
+            const resize = ()=>{
+                if(!((stage.width===window.innerWidth)&&(stage.height===window.innerHeight))) {
+                    stage.width = window.innerWidth;
+                    stage.height = window.innerHeight;
+                    let w = CLIP(stage.width,Info.W);
+                    let h = CLIP(stage.height-FH,Info.H-FH);
+                    h-=(h*MARGIN_SCALE<MIN_MARGIN)?MIN_MARGIN:(h*MARGIN_SCALE);
+                    w-=(w*MARGIN_SCALE<MIN_MARGIN)?MIN_MARGIN:(w*MARGIN_SCALE);
+                    if(w/Info.W>h/(Info.H-FH)) {
+                        const width = (h/(Info.H-FH))*Info.W;
+                        Object.assign(canvas.style,{
+                            left:((stage.width-width)>>1)+"px",
+                            top:(((stage.height-FH)-h)>>1)+"px",
+                            width:width+"px",
+                            height:h+"px"
+                        });
+                    }
+                    else {
+                        const height = (w/Info.W)*(Info.H-FH);
+                        Object.assign(canvas.style,{
+                            left:((stage.width-w)>>1)+"px",
+                            top:(((stage.height-FH)-height)>>1)+"px",
+                            width:w+"px",
+                            height:height+"px",
+                        });
+                    }
+                }
+            }
+            
+            const replace = (src,w,h)=>{
+                gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,src);
+            }
+            
+            window.addEventListener("resize",(e)=>{ stage.reset(); });
+            
+            setInterval((e)=>{
+                resize();
+            },33);
+            
+            resize();
+                
+            window.addEventListener("drop",(e)=>{
+                e.preventDefault();
+                e.stopPropagation();
+                if(e.dataTransfer.files.length===1) {
+                    const file = e.dataTransfer.files[0];
+                    const url = URL.createObjectURL(file);
+                    if(file.type==="image/jpeg") {
+                                                        
+                        const img = new Image();
+                        img.onload = (e)=>{
+                                
+                            if(Info.W==img.naturalWidth&&Info.H==img.naturalHeight) {
+                                
+                                error.style.opacity = 0;
 
-				img.push(crel("img",{"style":"width:100%;","src":gray}));
-				crel(div,crel("div",{"class":"cell"},img[img.length-1]));
-				
-				img.push(crel("img",{"style":"width:100%;","src":gray}));
-				crel(div,crel("div",{"class":"cell"},img[img.length-1]));
-			}
-			
-			crel(div,crel("div",{"style":"clear:both"}));
+                                gl.bindTexture(gl.TEXTURE_2D,jpg);
+                                replace(img,Info.W,Info.H);
+                                gl.bindTexture(gl.TEXTURE_2D,null);
+                                onDraw();
+                            }
+                            else {
+                                
+                                if(img.naturalWidth>1920*2||img.naturalHeight>1080*2) {
+                                    
+                                    error.textContent = "Error: JPG size must be no larger than 3840x2160.";
+                                    error.style.opacity = 1;
+                                    
+                                }
+                                else {
+                                    
+                                    error.style.opacity = 0;
+                                    
+                                    Info.W = img.naturalWidth;
+                                    Info.H = img.naturalHeight;
+                                    
+                                    canvas.width = Info.W;
+                                    canvas.height = Info.H;
+                                    
+                                    PIXEL.cleanup();
+                                    PNG.cleanup();
+                                    XY.cleanup();
+                                    BUFFER.cleanup();
+                                    BLACK.cleanup();
+                                    
+                                    PIXEL = new U8((Info.W*Info.H)<<2);
+                                    PNG = new U8(PNG_HEADER_SIZE+((Info.W*Info.H)<<2));
+                                    XY = new F32((Info.W*Info.H)<<1);
+                                    BUFFER = new U8((Info.W*Info.H)<<2);
+                                    BLACK = new U8((Info.W*Info.H)<<2);
+                                    
+                                    resetMap(XY.buffer.byteOffset,Info.W,Info.H);
+                                    
+                                    for(var k=0; k<Info.W*Info.H; k++) {
+                                        const addr = k<<2;
+                                        BLACK.buffer[addr+0] = BLACK.buffer[addr+1] = BLACK.buffer[addr+2] = 0;
+                                        BLACK.buffer[addr+3] = 255;
+                                    }
+                                    
+                                    Texture.cleanup(jpg);
+                                    Texture.cleanup(map);
+                                    
+                                    jpg = Texture.createU32(img);
+                                    draw.uniforms.u_jpg = jpg;
+                                    
+                                    map = Texture.createF32();
+                                    
+                                    update.uniforms.u_resolution = [Info.W,Info.H];
+                                    draw.uniforms.u_resolution = [Info.W,Info.H];
+                                    
+                                    Framebuffer.cleanup(FBO[0]);
+                                    Framebuffer.cleanup(FBO[1]);
+                                    
+                                    FBO = [
+                                        Framebuffer.create(Info.W,Info.H),
+                                        Framebuffer.create(Info.W,Info.H)
+                                    ];
+                                    
+                                    stage.width = stage.height = 0;
+                                    resize();
+                                    
+                                    frame = -1;
+                                    update.uniforms.u_prevCursor = [0.5,0.5];
+                                    update.uniforms.u_cursor = [0.5,0.5];
+                                    onUpdate();
+                                    onDraw();
+                                }
+                            }
+                        };
+                        img.src = url;
+                    }
+                    else if(file.type==="image/png") {
+                        fetch(url).then((response)=>{
+                            if(response.ok) {
+                                return response.arrayBuffer();
+                            }
+                            else {
+                                throw new Error(response.status);
+                            }
+                        }).then((arrayBuffer)=>{
+                            const bytes = new Uint8Array(arrayBuffer);
+                            if(bytes.length<=PNG.length) {
+                                
+                                error.style.opacity = 0;
+                                
+                                PNG.buffer.set(bytes);
+                            if(decodePNG(PIXEL.buffer.byteOffset,Info.W,Info.H,PNG.buffer.byteOffset,bytes.length)) {
+                                    replaceMap(XY.buffer.byteOffset,Info.W,Info.H,PIXEL.buffer.byteOffset);
+                                    gl.bindTexture(gl.TEXTURE_2D,map);
+                                    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,Info.W,Info.H,gl.RG,gl.FLOAT,XY.buffer);
+                                    gl.bindTexture(gl.TEXTURE_2D,null);
+                                    
+                                    frame = -1;
+                                    update.uniforms.u_prevCursor = [0.5,0.5];
+                                    update.uniforms.u_cursor = [0.5,0.5];
+                                    onUpdate();
+                                    onDraw();
+                                }
+                                else {
+                                    error.textContent = "Error: PNG size must be "+Info.W+"x"+Info.H+".";
+                                    error.style.opacity = 1;
+                                }
+                            }
+                            else {
+                                error.textContent = "Error";
+                                error.style.opacity = 1;
+                            }
+                            
+                        }).catch((e)=>{
+                            console.log(e);
+                        });
+                    }
+                    else {
+                        console.log("unknown filetype: "+file.type);
 
-			//setTimeout(function(){
-				
-				for(let k=0; k<3; k++) {
-					
-					const n = "0000"+list[k];			
-					const uid = (k<<1)+0;
-					
-					const tmp = crel("img");
-					
-					tmp.onload = function(){
-						img[uid].src = "./data/"+(n.substr(n.length-5,5))+".png";
-					};
-					tmp.src = "./data/"+(n.substr(n.length-5,5))+".png";
-				}
-				
-				for(let k=0; k<3; k++) {
-					
-					const n = "0000"+list[k];			
-					const uid = (k<<1)+1;
-					
-					const tmp = crel("img");
-					
-					tmp.onload = function(){
-						img[uid].src = "./dst/"+(n.substr(n.length-5,5))+".jpg";
-					};
-					tmp.src = "./dst/"+(n.substr(n.length-5,5))+".jpg";
-				}
-				
-				
-			//},100);
-						
-		
-			
-			const lang = document.querySelectorAll("#lang")[0];
-			if(lang&&lang.childNodes&&lang.childNodes.length==3) {
-				
-				const EN = lang.childNodes[0];
-				const JP = lang.childNodes[2];
-				
-				const text = function(type,init) {
-										
-					const en = document.querySelectorAll(".en");
-					const jp = document.querySelectorAll(".jp");
-					
-					if(type=="en") {
-						
-						EN.style.color = "#000";
-						EN.style.textDecoration = "none";
-						
-						JP.style.color = "#00F";
-						JP.style.textDecoration = "underline";
-						
-						for(let k=0; k<en.length; k++) en[k].style.display = "block";
-						for(let k=0; k<jp.length; k++) jp[k].style.display = "none";
-						
-						if(init) history.replaceState(null,document.title,"?lang=en");
-										
-					}
-					else {
-						
-						EN.style.color = "#00F";
-						EN.style.textDecoration = "underline";
-
-						JP.style.color = "#000";
-						JP.style.textDecoration = "none";
-												
-						for(let k=0; k<en.length; k++) en[k].style.display = "none";
-						for(let k=0; k<jp.length; k++) jp[k].style.display = "block";
-						
-						if(init) history.replaceState(null,document.title,"?lang=jp");
-						
-					}
-				}
-							
-				EN.addEventListener("click",function(){text("en",true);});	
-				JP.addEventListener("click",function(){text("jp",true);});
-			
-				text(type,false);
-			};
-			
-		</script>
-	</body>
+                    }
+                }
+            });
+        }
+        
+        DEFAULT_IMAGE.onload = ()=>{
+            Info.W = DEFAULT_IMAGE.naturalWidth;
+            Info.H = DEFAULT_IMAGE.naturalHeight;
+            initialize();
+        }
+        DEFAULT_IMAGE.src = DEFAULT_URL;
+            
+    </script>
+</body>
 </html>
